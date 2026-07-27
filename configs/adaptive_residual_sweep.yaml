@@ -1,0 +1,25 @@
+# configs/adaptive_residual_sweep.yaml
+# ─────────────────────────────────────
+# Full adaptive SQNR sweep: 10/12/15/18/20 dB thresholds
+# Run: python run_sweep.py --config configs/adaptive_residual_sweep.yaml --significance
+
+modality: language
+model_name: gpt2
+seeds: [42]
+n_chunks: 50
+seq_len: 1024
+block_size: 32
+device: auto
+
+quant_modes:
+  - fp32
+  - bf16
+  - mxfp4
+  - mxfp4_residual
+  - mxfp4_residual_act_only
+  - mxfp4_residual_weight_only
+  - mxfp4_adaptive_10
+  - mxfp4_adaptive_12
+  - mxfp4_adaptive_15
+  - mxfp4_adaptive_18
+  - mxfp4_adaptive_20

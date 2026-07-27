@@ -1,0 +1,635 @@
+"""
+core/quantizer.py
+=================
+Pure-PyTorch implementation of MXFP4 (E2M1 elements, E8M0 shared scale) and
+MXFP8 (E4M3 / E5M2 elements, E8M0 shared scale) block quantization, with:
+  - OCP-spec-correct FLOOR-based E8M0 scale extraction (shared across formats)
+  - Round-to-nearest-even at tie midpoints for MXFP4 (not simple torch.round)
+  - PyTorch-native float8 rounding for MXFP8 (torch.float8_e4m3fn / float8_e5m2)
+  - Two-pass residual quantization (MXFP4 and MXFP8)
+  - Adaptive SQNR-triggered residual (per block, per forward pass)
+
+No custom CUDA kernels, no Triton JIT.  The same code path runs on CPU and GPU.
+
+Format max values (unit-tested explicitly):
+  MXFP4 E2M1 : FORMAT_MAX =     6.0  (level table max)
+  MXFP8 E4M3 : FORMAT_MAX =   448.0  (exp=1111,mant=110; exp=1111,mant=111 = NaN)
+  MXFP8 E5M2 : FORMAT_MAX = 57344.0  (exp=11110,mant=11; exp=11111 = Inf/NaN)
+"""
+
+from __future__ import annotations
+
+import math
+import torch
+import torch.nn as nn
+from typing import Optional, Tuple
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MXFP4 (E2M1) lookup table
+# Representable magnitudes: {0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0}
+# Do NOT normalise – these are the exact absolute values.
+# ─────────────────────────────────────────────────────────────────────────────
+_MXFP4_LEVELS = torch.tensor(
+    [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0], dtype=torch.float32
+)
+MXFP4_FORMAT_MAX = 6.0  # largest representable magnitude
+
+# Tie midpoints for round-to-nearest-even:
+#   between index 0 (0.0)  & index 1 (0.5) -> 0.25   even index: 0
+#   between index 1 (0.5)  & index 2 (1.0) -> 0.75   even index: 2
+#   between index 2 (1.0)  & index 3 (1.5) -> 1.25   even index: 2
+#   between index 3 (1.5)  & index 4 (2.0) -> 1.75   even index: 4
+#   between index 4 (2.0)  & index 5 (3.0) -> 2.5    even index: 4
+#   between index 5 (3.0)  & index 6 (4.0) -> 3.5    even index: 6
+#   between index 6 (4.0)  & index 7 (6.0) -> 5.0    even index: 6
+# "even index" = round DOWN (to lower magnitude level) at tie
+_MXFP4_MIDPOINTS = torch.tensor(
+    [0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0], dtype=torch.float32
+)
+# At each midpoint, round to the level with the even index:
+#   midpoint[i] sits between levels[i] and levels[i+1].
+#   even index wins → tie resolves to levels[i] if i is even, else levels[i+1]
+_MXFP4_TIE_LOWER = torch.tensor(
+    [True, False, True, False, True, False, True], dtype=torch.bool
+)  # True → choose levels[i], False → choose levels[i+1]
+
+
+def _round_to_mxfp4_levels(x_abs: torch.Tensor) -> torch.Tensor:
+    """
+    Round each element of x_abs (non-negative) to the nearest MXFP4 level.
+    Handles ties with round-to-nearest-even at the exact midpoints.
+
+    Args:
+        x_abs: non-negative float tensor, any shape
+
+    Returns:
+        Tensor of same shape with values quantised to MXFP4 magnitudes.
+    """
+    levels = _MXFP4_LEVELS.to(x_abs.device)
+    midpoints = _MXFP4_MIDPOINTS.to(x_abs.device)
+    tie_lower = _MXFP4_TIE_LOWER.to(x_abs.device)
+
+    # Clamp to [0, FORMAT_MAX] first
+    x_clamped = x_abs.clamp(0.0, MXFP4_FORMAT_MAX)
+
+    # Expand for vectorised distance computation: [*shape, 8]
+    x_exp = x_clamped.unsqueeze(-1)           # [..., 1]
+    lvl_exp = levels.view(*([1] * x_clamped.dim()), 8)   # [1,...,1,8]
+    dist = torch.abs(x_exp - lvl_exp)         # [..., 8]
+    nearest_idx = dist.argmin(dim=-1)          # [...] (0–7)
+
+    # Handle exact ties at midpoints
+    # For each midpoint, check if x_abs is exactly at that midpoint
+    mid_exp = midpoints.view(*([1] * x_clamped.dim()), 7)  # [..., 7]
+    at_tie = (x_exp == mid_exp)   # [..., 7]  — exact float equality is fine here
+    # since midpoints are exact dyadic fractions representable in float32
+
+    # For tie i: if tie_lower[i], pick levels[i], else pick levels[i+1]
+    tie_idx_lower = torch.arange(7, device=x_abs.device)        # [0..6]
+    tie_idx_upper = tie_idx_lower + 1                            # [1..7]
+
+    # Start from nearest_idx, then patch tie positions
+    result_idx = nearest_idx.clone()
+    for i in range(7):
+        mask = at_tie[..., i]
+        if mask.any():
+            chosen = tie_idx_lower[i] if tie_lower[i].item() else tie_idx_upper[i]
+            result_idx = torch.where(mask, torch.full_like(result_idx, chosen.item()), result_idx)
+
+    return levels[result_idx]
+
+
+def _compute_e8m0_scale(amax: torch.Tensor, format_max: float = MXFP4_FORMAT_MAX) -> torch.Tensor:
+    """
+    Compute OCP-spec E8M0 power-of-two scale from per-block amax.
+
+    scale_exp = floor(log2(amax)) - floor(log2(format_max))
+    scale     = 2 ** scale_exp
+
+    Uses FLOOR (not ceil) — this is the OCP-spec-correct direction.
+    Safe for amax == 0 (returns scale=1 so downstream divide is harmless).
+
+    Args:
+        amax:       tensor of per-block absolute maxima, any shape
+        format_max: largest representable magnitude for the element format.
+                    MXFP4 E2M1 → 6.0  (default)
+                    MXFP8 E4M3 → 448.0
+                    MXFP8 E5M2 → 57344.0
+
+    Returns:
+        Tensor of same shape with power-of-two scales.
+    """
+    eps = torch.finfo(torch.float32).tiny
+    safe_amax = amax.clamp(min=eps)
+    log2_amax = torch.log2(safe_amax)
+    log2_format_max = math.floor(math.log2(format_max))
+    scale_exp = torch.floor(log2_amax) - log2_format_max
+    scale = torch.pow(2.0, scale_exp)
+    # Where amax was 0, force scale to 1 (not 2^(-126) or similar)
+    scale = torch.where(amax == 0.0, torch.ones_like(scale), scale)
+    return scale
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public quantize / dequantize API
+# ─────────────────────────────────────────────────────────────────────────────
+
+def quantize_mxfp4(x: torch.Tensor, block_size: int = 32) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Quantise x to MXFP4, returning (quantised_codes, scales).
+
+    quantised_codes: same shape as x, values in MXFP4 magnitudes ×sign
+    scales:          shape [num_blocks, 1], one power-of-two per block
+
+    The returned (codes, scales) pair is sufficient to reconstruct x via
+    dequantize_mxfp4.
+    """
+    original_shape = x.shape
+    x_flat = x.reshape(-1, block_size).to(torch.float32)
+
+    amax = torch.amax(torch.abs(x_flat), dim=-1, keepdim=True)  # [B, 1]
+    scale = _compute_e8m0_scale(amax)                             # [B, 1]
+
+    x_scaled = x_flat / scale                                     # [B, block_size]
+    x_abs = torch.abs(x_scaled)
+    x_sign = torch.sign(x_flat)
+
+    quant_abs = _round_to_mxfp4_levels(x_abs)                    # [B, block_size]
+    codes = quant_abs * x_sign
+    return codes.reshape(original_shape), scale
+
+
+def dequantize_mxfp4(codes: torch.Tensor, scale: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """
+    Reconstruct float values from (codes, scale).
+
+    codes: [..., block_size] quantised codes (values × sign)
+    scale: [num_blocks, 1]
+    """
+    original_shape = codes.shape
+    codes_flat = codes.reshape(-1, block_size).to(torch.float32)
+    return (codes_flat * scale).reshape(original_shape)
+
+
+def fake_quant_mxfp4(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """One-pass MXFP4 fake quantisation: quantise then dequantise in-place."""
+    codes, scale = quantize_mxfp4(x, block_size)
+    return dequantize_mxfp4(codes, scale, block_size)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Two-pass residual quantisation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fake_quant_mxfp4_residual(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """
+    Two-pass residual MXFP4 fake quantisation.
+
+    primary_quantized  = quantize(x)
+    primary_dequant    = dequantize(primary_quantized)
+    residual           = x - primary_dequant
+    residual_quantized = quantize(residual)   # own independent scale
+    residual_dequant   = dequantize(residual_quantized)
+    reconstructed      = primary_dequant + residual_dequant
+    """
+    primary_dequant = fake_quant_mxfp4(x, block_size)
+    residual = x - primary_dequant
+    residual_dequant = fake_quant_mxfp4(residual, block_size)
+    return primary_dequant + residual_dequant
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Adaptive SQNR-triggered residual
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fake_quant_mxfp4_adaptive(
+    x: torch.Tensor,
+    sqnr_thresh_db: float,
+    block_size: int = 32,
+) -> Tuple[torch.Tensor, float]:
+    """
+    Per-block adaptive residual quantisation.
+
+    For each block:
+      - Compute primary dequant.
+      - Compute SQNR = 10*log10(sum(orig^2) / sum((orig - primary_dequant)^2))
+      - If SQNR < sqnr_thresh_db → apply residual pass for that block.
+      - Otherwise keep primary dequant.
+
+    Returns:
+        (reconstructed tensor, trigger_rate)
+    """
+    original_shape = x.shape
+    x_flat = x.reshape(-1, block_size).float()          # [B, block_size]
+    B = x_flat.shape[0]
+
+    # ── Primary pass ──────────────────────────────────────────────────────────
+    amax = torch.amax(torch.abs(x_flat), dim=-1, keepdim=True)  # [B, 1]
+    scale = _compute_e8m0_scale(amax)
+
+    x_scaled = x_flat / scale
+    x_abs = torch.abs(x_scaled)
+    x_sign = torch.sign(x_flat)
+    quant_abs = _round_to_mxfp4_levels(x_abs)
+    primary_dequant = quant_abs * x_sign * scale         # [B, block_size]
+
+    # ── Per-block SQNR ────────────────────────────────────────────────────────
+    signal_power = (x_flat ** 2).sum(dim=-1)             # [B]
+    noise = x_flat - primary_dequant
+    noise_power = (noise ** 2).sum(dim=-1)               # [B]
+
+    # Avoid log(0): blocks with zero signal → SQNR = +inf (no trigger)
+    safe_noise = noise_power.clamp(min=1e-30)
+    safe_signal = signal_power.clamp(min=1e-30)
+    sqnr_db = 10.0 * torch.log10(safe_signal / safe_noise)
+    # Blocks with zero signal: set sqnr = +inf so they never trigger
+    sqnr_db = torch.where(signal_power == 0.0,
+                          torch.full_like(sqnr_db, float('inf')),
+                          sqnr_db)
+
+    trigger_mask = sqnr_db < sqnr_thresh_db              # [B] bool
+
+    # ── Residual pass for triggered blocks ───────────────────────────────────
+    residual = x_flat - primary_dequant                  # [B, block_size]
+
+    if trigger_mask.any():
+        res_amax = torch.amax(torch.abs(residual), dim=-1, keepdim=True)
+        res_scale = _compute_e8m0_scale(res_amax)
+        res_scaled = residual / res_scale
+        res_abs = torch.abs(res_scaled)
+        res_sign = torch.sign(residual)
+        res_quant_abs = _round_to_mxfp4_levels(res_abs)
+        residual_dequant = res_quant_abs * res_sign * res_scale  # [B, block_size]
+    else:
+        residual_dequant = torch.zeros_like(residual)
+
+    trigger_mask_exp = trigger_mask.unsqueeze(-1).expand_as(primary_dequant)
+    reconstructed = torch.where(trigger_mask_exp,
+                                primary_dequant + residual_dequant,
+                                primary_dequant)
+
+    trigger_rate = trigger_mask.float().mean().item()
+    return reconstructed.reshape(original_shape), trigger_rate
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NVFP4 (16-element blocks, E4M3 scale) — Part 5
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NVFP4 — NVIDIA Blackwell format (16-element blocks, two-level scaling)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Spec (verified against NVIDIA technical docs):
+#   Elements  : E2M1 (same 8-level lookup table as MXFP4)
+#   Block size: 16 elements
+#   Block scale: stored as FP8 E4M3 (max = 448.0), one per block
+#   Global scale: single FP32 per tensor
+#
+# Two-level scaling derivation:
+#   Let tensor_amax = max |x_i| over the whole tensor.
+#   global_scale = tensor_amax / (MXFP4_FORMAT_MAX * MXFP8_E4M3_FORMAT_MAX)
+#               = tensor_amax / (6.0 * 448.0)
+#   This ensures: for the block with the largest amax,
+#     block_scale_raw = block_amax / (global_scale * MXFP4_FORMAT_MAX)
+#                     = tensor_amax / (tensor_amax / (6 * 448)) / 6
+#                     = 448.0  ← fits exactly in E4M3 range [0, 448]
+#   For all other blocks, block_scale_raw < 448.0 ← also fits.
+#
+# Element reconstruction:
+#   x̂_i = round_e2m1(x_i / global_scale / block_scale_e4m3) * block_scale_e4m3 * global_scale
+#         where round_e2m1 maps into {0, ±0.5, ±1.0, ±1.5, ±2.0, ±3.0, ±4.0, ±6.0}
+#
+# Effective bits/value (amortising global FP32 over large tensors):
+#   (16 * 4 + 8) / 16 = 4.5 bits/value
+
+_NVFP4_BLOCK_SIZE: int = 16
+
+
+def fake_quant_nvfp4(x: torch.Tensor, block_size: int = _NVFP4_BLOCK_SIZE) -> torch.Tensor:
+    """
+    True NVFP4 fake-quantization:
+      - Global FP32 tensor scale (maps tensor dynamic range into E4M3 scale range)
+      - Per-block E4M3 scale (16-element blocks; scale is nearest E4M3 value)
+      - E2M1 element encoding (same 8-level table as MXFP4)
+
+    Validated by hand-trace in tests/hand_trace_nvfp4.py.
+
+    Args:
+        x:          input tensor, any shape, total elements must be divisible by block_size
+        block_size: number of elements per block (16 per NVFP4 spec)
+
+    Returns:
+        Fake-quantized tensor of the same shape and dtype as x.
+    """
+    original_shape = x.shape
+    x_flat = x.reshape(-1).float()                              # [N]
+    N = x_flat.numel()
+
+    # Handle tensors not divisible by block_size by padding (last partial block)
+    pad = (block_size - N % block_size) % block_size
+    if pad:
+        x_flat = torch.cat([x_flat, x_flat.new_zeros(pad)])
+
+    x_blocked = x_flat.reshape(-1, block_size).float()         # [B, block_size]
+    B = x_blocked.shape[0]
+
+    # ── Step 1: Global FP32 tensor scale ──────────────────────────────────────
+    tensor_amax = x_flat.abs().max()
+    if tensor_amax == 0.0:
+        return x.new_zeros(original_shape)
+
+    # global_scale maps block scales into E4M3 range [0, 448]
+    global_scale = tensor_amax / (MXFP4_FORMAT_MAX * MXFP8_E4M3_FORMAT_MAX)  # FP32
+
+    # ── Step 2: Per-block E4M3 scale ──────────────────────────────────────────
+    block_amax = torch.amax(x_blocked.abs(), dim=-1)            # [B]
+
+    # Compute raw block scale (would be exact in float; we then round to E4M3)
+    # block_scale_raw is in [0, MXFP8_E4M3_FORMAT_MAX=448] by construction of global_scale
+    block_scale_raw = block_amax / (global_scale * MXFP4_FORMAT_MAX)  # [B], in [0, 448]
+
+    # Round to nearest E4M3 representable value
+    block_scale_e4m3 = block_scale_raw.clamp(0.0, MXFP8_E4M3_FORMAT_MAX) \
+                                      .to(torch.float8_e4m3fn)  \
+                                      .to(torch.float32)        # [B]
+    # Zero-block handling: if block is all-zeros, block_scale_e4m3=0, division is safe
+    # (0/0 never occurs because we return zeros for tensor_amax==0 above,
+    #  and individual zero blocks give x_scaled=0/eps → rounded to 0.0 in E2M1)
+    safe_scale = block_scale_e4m3.clamp(min=torch.finfo(torch.float32).tiny)  # prevent div/0
+
+    # ── Step 3: Scale elements and round to E2M1 ──────────────────────────────
+    # x_blocked / global_scale / safe_scale should land in [-6.0, 6.0]
+    total_scale = (global_scale * safe_scale).unsqueeze(-1)     # [B, 1]
+    x_scaled = x_blocked / total_scale                          # [B, block_size]
+
+    x_abs = x_scaled.abs().clamp(0.0, MXFP4_FORMAT_MAX)        # clamp to E2M1 domain
+    x_sign = x_scaled.sign()
+    quant_abs = _round_to_mxfp4_levels(x_abs)                  # E2M1 nearest-even
+    x_q = quant_abs * x_sign                                    # signed E2M1 codes
+
+    # ── Step 4: Reconstruct ───────────────────────────────────────────────────
+    x_dq = x_q * total_scale                                    # [B, block_size]
+
+    # Remove padding and restore shape
+    result = x_dq.reshape(-1)[:N]
+    return result.reshape(original_shape)
+
+
+def fake_quant_nvfp4_residual(x: torch.Tensor) -> torch.Tensor:
+    """Two-pass residual NVFP4 fake quantization."""
+    primary = fake_quant_nvfp4(x)
+    return primary + fake_quant_nvfp4(x - primary)
+
+
+def fake_quant_nvfp4_adaptive(
+    x: torch.Tensor, sqnr_thresh_db: float
+) -> Tuple[torch.Tensor, float]:
+    """Adaptive SQNR-triggered residual NVFP4."""
+    # Compute per-block SQNR on the primary quantization
+    original_shape = x.shape
+    x_flat = x.reshape(-1, _NVFP4_BLOCK_SIZE).float()
+    primary_dq = fake_quant_nvfp4(x_flat)
+
+    signal_power = (x_flat ** 2).sum(dim=-1)
+    noise_power  = ((x_flat - primary_dq) ** 2).sum(dim=-1).clamp(min=1e-30)
+    sqnr_db = 10.0 * torch.log10(signal_power.clamp(min=1e-30) / noise_power)
+    sqnr_db = torch.where(signal_power == 0.0, torch.full_like(sqnr_db, float('inf')), sqnr_db)
+
+    trigger_mask = sqnr_db < sqnr_thresh_db                     # [B]
+    residual = x_flat - primary_dq
+    residual_dq = torch.where(
+        trigger_mask.unsqueeze(-1),
+        fake_quant_nvfp4(residual),
+        torch.zeros_like(residual)
+    )
+    result = (primary_dq + residual_dq).reshape(original_shape)
+    return result, trigger_mask.float().mean().item()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MXFP8 (E4M3 and E5M2 elements, E8M0 shared scale)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Key facts (unit-tested in tests/test_mxfp8.py):
+#   E4M3 (float8_e4m3fn):  1 sign + 4 exp + 3 mant, bias=7
+#                           max finite = 448.0  (exp=1111,mant=110)
+#                           exp=1111,mant=111 = NaN — do NOT produce this
+#   E5M2 (float8_e5m2):    1 sign + 5 exp + 2 mant, bias=15
+#                           max finite = 57344.0 (exp=11110,mant=11)
+#                           exp=11111 = Inf/NaN
+#
+# Implementation strategy:
+#   1. Compute E8M0 block scale using _compute_e8m0_scale(amax, format_max=FORMAT_MAX)
+#   2. Divide elements by scale → scaled values live in [-FORMAT_MAX, +FORMAT_MAX]
+#   3. Clamp to [-FORMAT_MAX, +FORMAT_MAX] to prevent NaN on overflow
+#   4. Cast to torch.float8_e4m3fn / torch.float8_e5m2 for nearest-even rounding
+#   5. Cast back to float32 and multiply by scale
+#
+# PyTorch 2.2+ required for float8 types (verified present in mxfp env).
+
+MXFP8_E4M3_FORMAT_MAX: float = 448.0
+MXFP8_E5M2_FORMAT_MAX: float = 57344.0
+
+
+def _fake_quant_mxfp8(
+    x: torch.Tensor,
+    format_max: float,
+    torch_dtype,           # torch.float8_e4m3fn or torch.float8_e5m2
+    block_size: int = 32,
+) -> torch.Tensor:
+    """
+    Generic MXFP8 fake-quantize: shared E8M0 scale + native float8 rounding.
+    Internal helper; call fake_quant_mxfp8_e4m3 / fake_quant_mxfp8_e5m2 instead.
+    """
+    original_shape = x.shape
+    x_flat = x.reshape(-1, block_size).float()            # [B, block_size]
+
+    amax = torch.amax(torch.abs(x_flat), dim=-1, keepdim=True)  # [B, 1]
+    scale = _compute_e8m0_scale(amax, format_max=format_max)     # [B, 1]
+
+    x_scaled = x_flat / scale                             # [B, block_size]
+    # Clamp before casting to prevent NaN (float8 NaN encodings exist at boundaries)
+    x_clamped = x_scaled.clamp(-format_max, format_max)
+    # Round to nearest representable float8 value via native cast
+    x_q = x_clamped.to(torch_dtype).to(torch.float32)    # nearest-even rounding
+    return (x_q * scale).reshape(original_shape)
+
+
+def fake_quant_mxfp8_e4m3(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """
+    MXFP8 E4M3 fake quantisation: 32-element blocks, E8M0 scale, E4M3 elements.
+    FORMAT_MAX = 448.0  (verified by unit test; NOT 240.0 which is E4M3FNUZ).
+    """
+    return _fake_quant_mxfp8(x, MXFP8_E4M3_FORMAT_MAX, torch.float8_e4m3fn, block_size)
+
+
+def fake_quant_mxfp8_e5m2(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """
+    MXFP8 E5M2 fake quantisation: 32-element blocks, E8M0 scale, E5M2 elements.
+    FORMAT_MAX = 57344.0  (verified by unit test).
+    """
+    return _fake_quant_mxfp8(x, MXFP8_E5M2_FORMAT_MAX, torch.float8_e5m2, block_size)
+
+
+# ── Two-pass residual for MXFP8 ───────────────────────────────────────────────
+
+def fake_quant_mxfp8_e4m3_residual(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """Two-pass residual MXFP8 E4M3 fake quantisation."""
+    primary = fake_quant_mxfp8_e4m3(x, block_size)
+    return primary + fake_quant_mxfp8_e4m3(x - primary, block_size)
+
+
+def fake_quant_mxfp8_e5m2_residual(x: torch.Tensor, block_size: int = 32) -> torch.Tensor:
+    """Two-pass residual MXFP8 E5M2 fake quantisation."""
+    primary = fake_quant_mxfp8_e5m2(x, block_size)
+    return primary + fake_quant_mxfp8_e5m2(x - primary, block_size)
+
+
+# ── Adaptive SQNR-triggered residual for MXFP8 ───────────────────────────────
+
+def _fake_quant_mxfp8_adaptive(
+    x: torch.Tensor,
+    sqnr_thresh_db: float,
+    format_max: float,
+    torch_dtype,
+    block_size: int = 32,
+) -> Tuple[torch.Tensor, float]:
+    """Generic adaptive residual for MXFP8 (shared by E4M3 and E5M2)."""
+    original_shape = x.shape
+    x_flat = x.reshape(-1, block_size).float()
+    B = x_flat.shape[0]
+
+    amax = torch.amax(torch.abs(x_flat), dim=-1, keepdim=True)
+    scale = _compute_e8m0_scale(amax, format_max=format_max)
+    x_scaled = (x_flat / scale).clamp(-format_max, format_max)
+    primary_dequant = x_scaled.to(torch_dtype).to(torch.float32) * scale
+
+    signal_power = (x_flat ** 2).sum(dim=-1)
+    noise = x_flat - primary_dequant
+    noise_power = (noise ** 2).sum(dim=-1)
+    safe_noise = noise_power.clamp(min=1e-30)
+    safe_signal = signal_power.clamp(min=1e-30)
+    sqnr_db = 10.0 * torch.log10(safe_signal / safe_noise)
+    sqnr_db = torch.where(signal_power == 0.0,
+                          torch.full_like(sqnr_db, float('inf')), sqnr_db)
+    trigger_mask = sqnr_db < sqnr_thresh_db
+
+    residual = x_flat - primary_dequant
+    if trigger_mask.any():
+        res_amax = torch.amax(torch.abs(residual), dim=-1, keepdim=True)
+        res_scale = _compute_e8m0_scale(res_amax, format_max=format_max)
+        res_scaled = (residual / res_scale).clamp(-format_max, format_max)
+        residual_dequant = res_scaled.to(torch_dtype).to(torch.float32) * res_scale
+    else:
+        residual_dequant = torch.zeros_like(residual)
+
+    trigger_mask_exp = trigger_mask.unsqueeze(-1).expand_as(primary_dequant)
+    reconstructed = torch.where(trigger_mask_exp,
+                                primary_dequant + residual_dequant,
+                                primary_dequant)
+    return reconstructed.reshape(original_shape), trigger_mask.float().mean().item()
+
+
+def fake_quant_mxfp8_e4m3_adaptive(
+    x: torch.Tensor, sqnr_thresh_db: float, block_size: int = 32
+) -> Tuple[torch.Tensor, float]:
+    """Adaptive SQNR-triggered residual MXFP8 E4M3."""
+    return _fake_quant_mxfp8_adaptive(
+        x, sqnr_thresh_db, MXFP8_E4M3_FORMAT_MAX, torch.float8_e4m3fn, block_size)
+
+
+def fake_quant_mxfp8_e5m2_adaptive(
+    x: torch.Tensor, sqnr_thresh_db: float, block_size: int = 32
+) -> Tuple[torch.Tensor, float]:
+    """Adaptive SQNR-triggered residual MXFP8 E5M2."""
+    return _fake_quant_mxfp8_adaptive(
+        x, sqnr_thresh_db, MXFP8_E5M2_FORMAT_MAX, torch.float8_e5m2, block_size)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bit accounting helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def bits_per_value(mode: str, trigger_rate: float = 0.0) -> float:
+    """Return the effective bits/value for a given quant mode."""
+    if mode == "fp32":
+        return 32.0
+    if mode == "bf16":
+        return 16.0
+    # ── MXFP4 ────────────────────────────────────────────────────────────────
+    if mode == "mxfp4":
+        return (32 * 4 + 8) / 32           # 4.25
+    if mode == "nvfp4":
+        return (16 * 4 + 8) / 16           # 4.50
+    if mode in ("mxfp4_residual", "mxfp4_residual_full"):
+        return (2 * 32 * 4 + 2 * 8) / 32  # 8.50
+    if mode == "mxfp4_residual_act_only":
+        return (4.25 + 8.50) / 2           # 6.375
+    if mode == "mxfp4_residual_weight_only":
+        return (8.50 + 4.25) / 2           # 6.375
+    if mode.startswith("mxfp4_adaptive"):
+        return 4.25 + trigger_rate * 4.25
+    # ── MXFP8 ────────────────────────────────────────────────────────────────
+    # 32 elements × 8 bits + 8-bit E8M0 scale = 8.25 bits/value
+    if mode in ("mxfp8_e4m3", "mxfp8_e5m2"):
+        return (32 * 8 + 8) / 32           # 8.25
+    if mode in ("mxfp8_e4m3_residual", "mxfp8_e5m2_residual"):
+        return (2 * 32 * 8 + 2 * 8) / 32  # 16.50
+    if mode.startswith("mxfp8_e4m3_adaptive") or mode.startswith("mxfp8_e5m2_adaptive"):
+        return 8.25 + trigger_rate * 8.25
+    return 4.25  # fallback
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Quantizer classes
+# ─────────────────────────────────────────────────────────────────────────────
+
+class BaseQuantizer(nn.Module):
+    """Abstract quantizer interface."""
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, float]:
+        raise NotImplementedError
+
+
+class MXFP4Quantizer(BaseQuantizer):
+    """
+    Configurable MXFP4 quantizer.
+
+    mode:
+        'mxfp4'                 – naive one-pass
+        'mxfp4_residual'        – static two-pass
+        'mxfp4_adaptive_<X>'    – adaptive SQNR-triggered (X in dB)
+
+    Returns (quantised_tensor, trigger_rate).
+    """
+    def __init__(self, mode: str = "mxfp4", block_size: int = 32):
+        super().__init__()
+        self.mode = mode
+        self.block_size = block_size
+        self._sqnr_thresh: Optional[float] = None
+        if "adaptive" in mode:
+            # parse threshold from mode string e.g. 'mxfp4_adaptive_15'
+            try:
+                self._sqnr_thresh = float(mode.split("_")[-1])
+            except ValueError:
+                self._sqnr_thresh = 15.0
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, float]:
+        if self.mode == "mxfp4":
+            return fake_quant_mxfp4(x, self.block_size), 0.0
+        if self.mode in ("mxfp4_residual", "mxfp4_residual_full"):
+            return fake_quant_mxfp4_residual(x, self.block_size), 1.0
+        if "adaptive" in self.mode and self._sqnr_thresh is not None:
+            return fake_quant_mxfp4_adaptive(x, self._sqnr_thresh, self.block_size)
+        # fallback
+        return fake_quant_mxfp4(x, self.block_size), 0.0
+
+
+class NVFP4Quantizer(BaseQuantizer):
+    """NVFP4 quantizer (16-element blocks)."""
+    def __init__(self, block_size: int = 16):
+        super().__init__()
+        self.block_size = block_size
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, float]:
+        return fake_quant_nvfp4(x, self.block_size), 0.0

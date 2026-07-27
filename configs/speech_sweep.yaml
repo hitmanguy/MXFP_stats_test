@@ -1,0 +1,33 @@
+# configs/speech_sweep.yaml
+# =========================
+# Speech (Wav2Vec2 / LibriSpeech test-clean) quantisation sweep.
+# Covers Steps 2-5 from the task spec.
+# Use run_speech_sweep.py for the structured step-by-step run,
+# or run_sweep.py --config configs/speech_sweep.yaml for a single-config pass.
+
+modality: speech
+model_name: facebook/wav2vec2-base-960h
+seeds: [42]
+n_samples: 200
+block_size: 32
+device: auto
+
+# Default skip policy (lm_head skipped; feature extractor quantised)
+skip_feature_extractor: false
+extra_skip_names: [lm_head]
+
+quant_modes:
+  # Step 2 — baseline
+  - fp32
+
+  # Step 4 — naive sweep
+  - mxfp4
+  - mxfp8_e4m3
+  - mxfp8_e5m2
+
+  # Step 5 — residual + adaptive
+  - mxfp4_residual
+  - mxfp4_adaptive_18
+  - mxfp4_residual_act_only
+  - mxfp4_residual_weight_only
+  

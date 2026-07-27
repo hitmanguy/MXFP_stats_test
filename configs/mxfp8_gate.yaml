@@ -1,0 +1,24 @@
+# configs/mxfp8_gate.yaml
+# ─────────────────────────────
+# MXFP8 evaluation sweep: GPT-2, WikiText-2, seed=42, 50 chunks
+# Run: python run_sweep.py --config configs/mxfp8_gate.yaml
+
+modality: language
+model_name: gpt2
+seeds: [42]
+n_chunks: 50
+seq_len: 1024
+block_size: 32
+device: auto
+
+quant_modes:
+  - fp32
+  - mxfp4
+  - mxfp8_e4m3
+  - mxfp8_e5m2
+  - mxfp8_e4m3_residual
+  - mxfp8_e5m2_residual
+  - mxfp8_e4m3_adaptive_30
+  - mxfp8_e4m3_adaptive_40
+  - mxfp8_e5m2_adaptive_30
+  - mxfp8_e5m2_adaptive_40

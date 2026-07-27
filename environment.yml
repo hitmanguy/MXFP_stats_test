@@ -1,0 +1,40 @@
+name: mxfp4
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    # Deep learning
+    - torch==2.2.0
+    - torchvision==0.17.0
+    - torchaudio==2.2.0
+    # HuggingFace
+    - transformers==4.40.2
+    - datasets==2.20.0          # pin to 2.x to avoid aiohttp SSL init bug on Windows
+    - tokenizers==0.19.1
+    - huggingface_hub==0.36.2
+    - safetensors==0.8.0
+    - certifi                   # provides CA bundle for SSL cert fix on Windows
+    # Numerics + analysis
+    - numpy==1.26.4
+    - scipy==1.15.3
+    - scikit-learn==1.7.2
+    - pandas==2.3.3
+    # Visualisation
+    - matplotlib==3.10.9
+    - seaborn==0.13.2
+    # Utilities
+    - PyYAML==6.0.3
+    - tqdm==4.68.2
+    - pillow==12.2.0
+    - pyarrow==25.0.0
+    - filelock==3.29.1
+    - fsspec==2026.4.0
+    - regex==2026.5.9
+    - packaging==26.0
+    - requests==2.34.2
+    - huggingface_hub>=0.36.2

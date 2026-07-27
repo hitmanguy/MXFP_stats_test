@@ -1,0 +1,35 @@
+# .gitignore for software_side_tests
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.so
+
+# Conda / venv
+.env
+venv/
+env/
+
+# Results (keep schema, ignore data)
+results/eval_ledger.db
+results/eval_ledger.jsonl
+results/*.png
+results_mini/
+results/
+
+# HuggingFace cache
+.cache/
+~/.cache/huggingface/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,17 @@
+# configs/debug_gpt2.yaml
+# ────────────────────────
+# Fast CPU smoke test: 5 chunks, fp32 + mxfp4 only
+# Run: python run_sweep.py --config configs/debug_gpt2.yaml
+
+modality: language
+model_name: gpt2
+seeds: [42]
+n_chunks: 5
+seq_len: 1024
+block_size: 32
+device: cpu
+
+quant_modes:
+  - fp32
+  - mxfp4
+  - mxfp4_residual

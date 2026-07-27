@@ -1,0 +1,18 @@
+# configs/nvfp4_gate.yaml
+# ─────────────────────────────
+# NVFP4 evaluation sweep: GPT-2, WikiText-2, seed=42, 50 chunks
+# Runs AFTER hand-trace validation passes.
+# No prior reference exists — these runs ESTABLISH the reference numbers.
+
+modality: language
+model_name: gpt2
+seeds: [42]
+n_chunks: 50
+seq_len: 1024
+block_size: 32
+device: auto
+
+quant_modes:
+  - fp32
+  - mxfp4
+  - nvfp4

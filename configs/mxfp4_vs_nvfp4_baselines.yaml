@@ -1,0 +1,17 @@
+# configs/mxfp4_vs_nvfp4_baselines.yaml
+# ─────────────────────────────────────
+# Part 5: MXFP4 vs NVFP4 cross-format comparison
+# Run: python run_sweep.py --config configs/mxfp4_vs_nvfp4_baselines.yaml
+
+modality: language
+model_name: gpt2
+seeds: [42]
+n_chunks: 50
+seq_len: 1024
+block_size: 32
+device: auto
+
+quant_modes:
+  - fp32
+  - mxfp4
+  - mxfp4_residual
