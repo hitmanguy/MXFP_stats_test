@@ -23,7 +23,10 @@ def convert_db_to_excel(db_path: str, output_path: str):
         
         # Write the DataFrame to an Excel file (Office Open XML format .xlsx)
         print(f"Found {len(df)} rows. Exporting to {output_path}...")
-        df.to_excel(output_path, index=False, engine='openpyxl')
+        if output_path.lower().endswith('.csv'):
+            df.to_csv(output_path, index=False)
+        else:
+            df.to_excel(output_path, index=False, engine='openpyxl')
         
         print(f"Success! Data exported to {output_path}")
         
