@@ -1,4 +1,4 @@
-name: mxfp4
+name: mxfp
 channels:
   - pytorch
   - nvidia
@@ -38,3 +38,5 @@ dependencies:
     - packaging==26.0
     - requests==2.34.2
     - huggingface_hub>=0.36.2
+    # Testing
+    - pytest
