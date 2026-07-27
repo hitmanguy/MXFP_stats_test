@@ -31,12 +31,12 @@ dependencies:
     - PyYAML==6.0.3
     - tqdm==4.68.2
     - pillow==12.2.0
-    - pyarrow==25.0.0
-    - filelock==3.29.1
-    - fsspec==2026.4.0
-    - regex==2026.5.9
-    - packaging==26.0
-    - requests==2.34.2
+    - pyarrow
+    - filelock
+    - fsspec<=2024.5.0
+    - regex
+    - packaging
+    - requests
     - huggingface_hub>=0.36.2
     # Testing
     - pytest
