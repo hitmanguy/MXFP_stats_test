@@ -17,6 +17,7 @@ Usage:
     python run_sweep.py --config configs/acceptance_gate.yaml --significance
 """
 from __future__ import annotations
+from pathlib import Path
 
 # ── SSL cert fix (must be first, before any network-aware library imports) ──
 import os as _os
