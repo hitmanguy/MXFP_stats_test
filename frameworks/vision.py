@@ -141,7 +141,7 @@ class VisionEvalHarness:
         import datasets
         print("  Loading ImageNet-1k validation split (streaming)...")
         try:
-            ds = datasets.load_dataset("ILSVRC/imagenet-1k", split="validation", streaming=True, trust_remote_code=True)
+            ds = datasets.load_dataset("ILSVRC/imagenet-1k", split="validation", streaming=True, trust_remote_code=True, token=True)
         except Exception as e:
             print("\n  !! ERROR: Failed to load ILSVRC/imagenet-1k.")
             print("  Make sure you have accepted the terms on HuggingFace and set HF_TOKEN.")
