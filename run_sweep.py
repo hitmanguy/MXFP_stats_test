@@ -20,9 +20,14 @@ from __future__ import annotations
 
 # ── SSL cert fix (must be first, before any network-aware library imports) ──
 import os as _os
-_os.environ["HF_HOME"] = r"D:\hf_cache"
-_os.environ["HF_DATASETS_CACHE"] = r"D:\hf_cache\datasets"
-_os.environ["TRANSFORMERS_CACHE"] = r"D:\hf_cache\transformers"
+if _os.name == "nt":
+    cache = Path("D:/hf_cache")
+else:
+    cache = Path.home() / "hf_cache"
+
+_os.environ["HF_HOME"] = str(cache)
+_os.environ["HF_DATASETS_CACHE"] = str(cache / "datasets")
+_os.environ["HF_HUB_CACHE"] = str(cache / "hub")
 
 try:
     import certifi as _certifi
