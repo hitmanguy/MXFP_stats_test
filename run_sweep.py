@@ -370,6 +370,69 @@ def run_speech_eval(
     return all_results
 
 
+def run_recsys_eval(
+    cfg: Dict,
+    logger,
+) -> List[Dict]:
+    """Run recsys (AUC) evaluations as specified by config."""
+    from frameworks.recsys import RecSysEvalHarness
+    from core.quantizer import bits_per_value
+    from frameworks.language import _resolve_modes
+
+    quant_modes = cfg.get("quant_modes", ["fp32"])
+    seeds = cfg.get("seeds", [42])
+    n_samples = cfg.get("n_samples", 100_000)
+    block_size = cfg.get("block_size", 32)
+    device_str = cfg.get("device", "auto")
+    quantize_embeddings = cfg.get("quantize_embeddings", False)
+
+    import torch
+    if device_str == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(device_str)
+
+    all_results = []
+    for seed in seeds:
+        for mode in quant_modes:
+            try:
+                harness = RecSysEvalHarness(
+                    quant_mode=mode,
+                    n_samples=n_samples,
+                    seed=seed,
+                    block_size=block_size,
+                    device=device,
+                    quantize_embeddings=quantize_embeddings,
+                )
+                result = harness.run()
+                result["seed"] = seed
+
+                eff_bits = bits_per_value(mode)
+                weight_mode, act_mode = _resolve_modes(mode)
+                weight_bits = bits_per_value(weight_mode)
+                act_bits = bits_per_value(act_mode)
+
+                logger.log(
+                    model_family="dlrm",
+                    modality="recsys",
+                    dataset="criteo-terabyte",
+                    seed=seed,
+                    quant_mode=mode,
+                    metric_name="auc",
+                    metric_value=result["auc"],
+                    weight_bits=weight_bits,
+                    act_bits=act_bits,
+                    eff_bits=eff_bits,
+                )
+
+                all_results.append(result)
+            except Exception as e:
+                print(f"  [ERROR] {e}")
+                import traceback
+                traceback.print_exc()
+
+    return all_results
+
 def main():
     parser = argparse.ArgumentParser(description="MXFP4 Evaluation Sweep Runner")
     parser.add_argument("--config", required=True, help="Path to YAML config file")
@@ -399,6 +462,8 @@ def main():
         results = run_vision_eval(cfg, logger, significance=args.significance)
     elif modality == "speech":
         results = run_speech_eval(cfg, logger)
+    elif modality == "recsys":
+        results = run_recsys_eval(cfg, logger)
     else:
         print(f"[WARN] Modality '{modality}' not supported")
 
