@@ -1,0 +1,19 @@
+model_name: "deit_small_patch16_224"
+modality: "vision"
+dataset: "imagenet-1k"
+seeds: [42]
+batch_size: 32
+n_batches: 100
+block_size: 32
+quant_modes:
+  - fp32
+  - bf16
+  - mxfp4
+  - nvfp4
+  - mxfp8_e4m3
+  - mxfp8_e5m2
+  - mxfp4_residual
+  - mxfp8_e5m2_residual
+  - mxfp4_adaptive_18
+  - mxfp4_residual_act_only
+  - mxfp4_residual_weight_only
