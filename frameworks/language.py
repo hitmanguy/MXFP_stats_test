@@ -189,8 +189,8 @@ def _compute_ppl_on_chunks(
     Returns (ppl, per_chunk_nll_list).
     """
     model.eval()
-    model.to(device)
-
+    if next(model.parameters()).device != device:
+        model.to(device)
     total_nll = 0.0
     total_tokens = 0
     per_chunk_nll: List[float] = []

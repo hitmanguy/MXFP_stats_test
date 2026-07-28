@@ -45,3 +45,4 @@ dependencies:
     - librosa
     # Recommendation systems
     - torchrec
+    - timm

@@ -81,6 +81,11 @@ def run_language_eval(
 
     for seed in seeds:
         for mode in quant_modes:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             print(f"\n[SWEEP] {model_name} | mode={mode} | seed={seed}")
             try:
                 harness = LanguageEvalHarness(
@@ -246,6 +251,11 @@ def run_vision_eval(
 
     for seed in seeds:
         for mode in quant_modes:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             print(f"\n[SWEEP] {model_name} | mode={mode} | seed={seed}")
             try:
                 harness = VisionEvalHarness(
@@ -326,6 +336,11 @@ def run_speech_eval(
 
     for seed in seeds:
         for mode in quant_modes:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             print(f"\n[SWEEP] {model_name} | mode={mode} | seed={seed}")
             try:
                 harness = SpeechEvalHarness(
@@ -395,6 +410,11 @@ def run_recsys_eval(
     all_results = []
     for seed in seeds:
         for mode in quant_modes:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             try:
                 harness = RecSysEvalHarness(
                     quant_mode=mode,

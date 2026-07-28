@@ -177,7 +177,7 @@ class FakeQuantLinear(nn.Module):
         self._has_static_weight: bool = False
         if weight_mode not in ("fp32", "bf16", "none"):
             w, rate = _quantise_weight(self.weight.data, weight_mode, block_size)
-            self.register_buffer("_static_weight", w)
+            self.register_buffer("_static_weight", w.to(self.weight.data.dtype))
             self._has_static_weight = True
             self.last_weight_trigger_rate = rate
         else:
@@ -263,7 +263,7 @@ class FakeQuantGPT2Conv1D(nn.Module):
         self._has_static_weight: bool = False
         if weight_mode not in ("fp32", "bf16", "none"):
             sq = self._quant_weight(self.weight.data, weight_mode)
-            self.register_buffer("_static_weight", sq)
+            self.register_buffer("_static_weight", sq.to(self.weight.data.dtype))
             self._has_static_weight = True
         else:
             self.register_buffer("_static_weight", None)
@@ -363,7 +363,7 @@ class FakeQuantConv1d(nn.Module):
             original_shape = self.weight.data.shape   # [out, in/g, kW]
             w_flat = self.weight.data.flatten(1)      # [out, in/g * kW]
             w_q, rate = _quantise_weight(w_flat, weight_mode, block_size)
-            self.register_buffer("_static_weight", w_q.reshape(original_shape))
+            self.register_buffer("_static_weight", w_q.reshape(original_shape).to(self.weight.data.dtype))
             self._has_static_weight = True
             self.last_weight_trigger_rate = rate
         else:

@@ -55,7 +55,7 @@ class FakeQuantConv2d(nn.Module):
             from core.layers import _quantise_weight
             w_flat = self.weight.data.flatten(1)   # [out, in*kH*kW]
             w_q, _ = _quantise_weight(w_flat, weight_mode, block_size)
-            self.register_buffer("_static_weight", w_q.reshape(original.weight.shape))
+            self.register_buffer("_static_weight", w_q.reshape(original.weight.shape).to(self.weight.data.dtype))
             self._has_static_weight = True
         else:
             self.register_buffer("_static_weight", None)
