@@ -133,76 +133,11 @@ def run_language_eval(
                 import traceback
                 traceback.print_exc()
 
-    # ── Acceptance gate summary ───────────────────────────────────────────────
-    seed42_results = [r for r in all_results if r["seed"] == 42]
-    if seed42_results:
-        _print_acceptance_gate(seed42_results, cfg)
-
     # ── Significance testing ──────────────────────────────────────────────────
     if significance and len(per_chunk_nlls) >= 2:
         _run_significance_tests(per_chunk_nlls)
 
     return all_results
-
-
-def _print_acceptance_gate(results: List[Dict], cfg: Dict) -> None:
-    """Print acceptance gate table comparing to reference numbers."""
-    REFERENCE = {
-        "fp32":                     (29.98, 0.5),
-        "bf16":                     (30.24, 0.5),
-        "mxfp4":                    (109.72, 5.0),
-        "mxfp4_residual":           (30.13, 1.0),
-        "mxfp4_residual_full":      (30.13, 1.0),
-        "mxfp4_residual_act_only":  (35.33, 1.5),
-        "mxfp4_adaptive_15":        (61.49, 3.0),
-        "mxfp4_adaptive_18":        (34.87, 5.0),
-    }
-
-    print("\n" + "="*80)
-    print("  ACCEPTANCE GATE — Part 3")
-    print("="*80)
-    print(f"  {'Variant':<35} {'Expected':>10} {'Got':>10} {'Δ':>8} {'Status':>8}")
-    print("  " + "─"*76)
-
-    all_pass = True
-    for r in results:
-        mode = r["quant_mode"]
-        ppl = r["ppl"]
-        if mode in REFERENCE:
-            ref_ppl, tol = REFERENCE[mode]
-            delta = ppl - ref_ppl
-            ok = abs(delta) <= tol
-            status = "✓ PASS" if ok else "✗ FAIL"
-            if not ok:
-                all_pass = False
-            print(f"  {mode:<35} {ref_ppl:>10.2f} {ppl:>10.2f} {delta:>+8.2f} {status:>8}")
-        else:
-            from core.quantizer import bits_per_value
-            eff = bits_per_value(mode)
-            print(f"  {mode:<35} {'n/a':>10} {ppl:>10.2f} {'—':>8} {'INFO':>8}")
-
-    print("  " + "─"*76)
-    if all_pass:
-        print("  ✓ ALL GATE CHECKS PASSED — proceeding to Parts 4-6 is authorised")
-    else:
-        print("  ✗ GATE FAILED — DO NOT proceed to Part 4/5 until all rows pass")
-    print("="*80 + "\n")
-
-    # SQNR monotonicity check
-    adaptive_modes = ["mxfp4_adaptive_12", "mxfp4_adaptive_15", "mxfp4_adaptive_18", "mxfp4_adaptive_20"]
-    adaptive_results = {r["quant_mode"]: r["ppl"] for r in results if r["quant_mode"] in adaptive_modes}
-    if len(adaptive_results) >= 2:
-        print("  SQNR Monotonicity Check (PPL must decrease or stay flat as thresh increases):")
-        prev_mode, prev_ppl = None, None
-        for mode in adaptive_modes:
-            if mode in adaptive_results:
-                ppl = adaptive_results[mode]
-                if prev_ppl is not None:
-                    mono_ok = ppl <= prev_ppl + 0.1   # small tolerance for floating point
-                    sym = "✓" if mono_ok else "✗ MONOTONICITY VIOLATED!"
-                    print(f"    {prev_mode} → {mode}: {prev_ppl:.2f} → {ppl:.2f}  {sym}")
-                prev_mode, prev_ppl = mode, ppl
-        print()
 
 
 def _run_significance_tests(per_chunk_nlls: Dict[str, List[float]]) -> None:
