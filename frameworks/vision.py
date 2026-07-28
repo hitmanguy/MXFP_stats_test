@@ -117,13 +117,32 @@ class VisionEvalHarness:
         
         # 1. Load Model
         import torchvision
-        from torchvision.models import resnet18, ResNet18_Weights
+        from torchvision.models import resnet18, ResNet18_Weights, resnet50, ResNet50_Weights
         
         print(f"\n  Loading {self.model_name}...")
         if self.model_name == "resnet18":
             weights = ResNet18_Weights.DEFAULT
             model = resnet18(weights=weights)
             transforms = weights.transforms()
+        elif self.model_name == "resnet50":
+            weights = ResNet50_Weights.DEFAULT
+            model = resnet50(weights=weights)
+            transforms = weights.transforms()
+        elif self.model_name.startswith("deit_"):
+            try:
+                import timm
+            except ImportError:
+                raise ImportError("Please install 'timm' to run DeiT models (pip install timm).")
+            # Create DeiT model via timm
+            model = timm.create_model(self.model_name, pretrained=True)
+            # Create standard ImageNet transforms for timm models
+            from torchvision import transforms as T
+            transforms = T.Compose([
+                T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
+                T.CenterCrop(224),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
         else:
             raise ValueError(f"Unsupported model: {self.model_name}")
             
