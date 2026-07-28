@@ -123,11 +123,11 @@ class VisionEvalHarness:
             weights = ResNet50_Weights.DEFAULT
             model = resnet50(weights=weights)
             transforms = weights.transforms()
-        elif self.model_name.startswith("deit_"):
+        elif self.model_name.startswith("deit_") or self.model_name.startswith("vit_"):
             try:
                 import timm
             except ImportError:
-                raise ImportError("Please install 'timm' to run DeiT models (pip install timm).")
+                raise ImportError("Please install 'timm' to run DeiT/ViT models (pip install timm).")
             # Create DeiT model via timm
             model = timm.create_model(self.model_name, pretrained=True)
             # Create standard ImageNet transforms for timm models
