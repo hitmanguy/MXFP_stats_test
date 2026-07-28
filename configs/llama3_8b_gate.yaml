@@ -5,7 +5,6 @@ seeds: [42]
 n_samples: 128
 block_size: 32
 quant_modes:
-  - fp32
   - bf16
   - mxfp4
   - nvfp4
