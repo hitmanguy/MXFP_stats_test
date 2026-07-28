@@ -50,23 +50,18 @@ class FakeQuantConv2d(nn.Module):
         self.act_mode = act_mode
         self.block_size = block_size
 
-        self._has_static_weight = False
+        # Pre-quantise weights once. Flatten spatial dims for blocking.
         if weight_mode not in ("fp32", "bf16", "none"):
             from core.layers import _quantise_weight
             w_flat = self.weight.data.flatten(1)   # [out, in*kH*kW]
             w_q, _ = _quantise_weight(w_flat, weight_mode, block_size)
-            self.register_buffer("_static_weight", w_q.reshape(original.weight.shape).to(self.weight.data.dtype))
-            self._has_static_weight = True
-        else:
-            self.register_buffer("_static_weight", None)
+            self.weight.data = w_q.reshape(original.weight.shape).to(self.weight.data.dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         from core.layers import _quantise_activation
         dev = x.device
-        if self._has_static_weight and self._static_weight is not None:
-            w = self._static_weight.to(device=dev, dtype=x.dtype)
-        else:
-            w = self.weight.to(device=dev, dtype=x.dtype)
+        # ── Weight ──────────────────────────────────────────────────────────
+        w = self.weight.to(device=dev, dtype=x.dtype)
             
         x_q, _ = _quantise_activation(x.float(), self.act_mode, self.block_size)
         x_q = x_q.to(x.dtype)

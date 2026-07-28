@@ -173,23 +173,15 @@ class FakeQuantLinear(nn.Module):
         self.last_act_trigger_rate: float = 0.0
 
         # Pre-quantise weights once (weights don't change at runtime).
-        # Stored as a buffer so model.to(device) / .cuda() moves it automatically.
-        self._has_static_weight: bool = False
         if weight_mode not in ("fp32", "bf16", "none"):
             w, rate = _quantise_weight(self.weight.data, weight_mode, block_size)
-            self.register_buffer("_static_weight", w.to(self.weight.data.dtype))
-            self._has_static_weight = True
+            self.weight.data = w.to(self.weight.data.dtype)
             self.last_weight_trigger_rate = rate
-        else:
-            self.register_buffer("_static_weight", None)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dev = x.device
         # ── Weight ──────────────────────────────────────────────────────────
-        if self._has_static_weight and self._static_weight is not None:
-            w = self._static_weight.to(device=dev, dtype=x.dtype)
-        else:
-            w = self.weight.to(device=dev, dtype=x.dtype)
+        w = self.weight.to(device=dev, dtype=x.dtype)
 
         # ── Activation ──────────────────────────────────────────────────────
         x_q, act_rate = _quantise_activation(x.float(), self.act_mode, self.block_size)
@@ -259,14 +251,9 @@ class FakeQuantGPT2Conv1D(nn.Module):
         self.last_act_trigger_rate: float = 0.0
 
         # Pre-quantise weight (transpose → quant → transpose back).
-        # Stored as a buffer so model.to(device) / .cuda() moves it automatically.
-        self._has_static_weight: bool = False
         if weight_mode not in ("fp32", "bf16", "none"):
             sq = self._quant_weight(self.weight.data, weight_mode)
-            self.register_buffer("_static_weight", sq.to(self.weight.data.dtype))
-            self._has_static_weight = True
-        else:
-            self.register_buffer("_static_weight", None)
+            self.weight.data = sq.to(self.weight.data.dtype)
 
     def _quant_weight(self, w: torch.Tensor, mode: str) -> torch.Tensor:
         """
@@ -282,10 +269,7 @@ class FakeQuantGPT2Conv1D(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dev = x.device
         # ── Weight ──────────────────────────────────────────────────────────
-        if self._has_static_weight and self._static_weight is not None:
-            w = self._static_weight.to(device=dev, dtype=x.dtype)
-        else:
-            w = self.weight.to(device=dev, dtype=x.dtype)
+        w = self.weight.to(device=dev, dtype=x.dtype)
 
         # ── Activation ──────────────────────────────────────────────────────
         x_q, act_rate = _quantise_activation(x.float(), self.act_mode, self.block_size)
@@ -358,24 +342,17 @@ class FakeQuantConv1d(nn.Module):
         self.last_act_trigger_rate: float = 0.0
 
         # Pre-quantise weights once.  Flatten kernel dimension for blocking.
-        self._has_static_weight: bool = False
         if weight_mode not in ("fp32", "bf16", "none"):
             original_shape = self.weight.data.shape   # [out, in/g, kW]
             w_flat = self.weight.data.flatten(1)      # [out, in/g * kW]
             w_q, rate = _quantise_weight(w_flat, weight_mode, block_size)
-            self.register_buffer("_static_weight", w_q.reshape(original_shape).to(self.weight.data.dtype))
-            self._has_static_weight = True
+            self.weight.data = w_q.reshape(original_shape).to(self.weight.data.dtype)
             self.last_weight_trigger_rate = rate
-        else:
-            self.register_buffer("_static_weight", None)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dev = x.device
         # ── Weight ──────────────────────────────────────────────────────────
-        if self._has_static_weight and self._static_weight is not None:
-            w = self._static_weight.to(device=dev, dtype=x.dtype)
-        else:
-            w = self.weight.to(device=dev, dtype=x.dtype)
+        w = self.weight.to(device=dev, dtype=x.dtype)
 
         # ── Activation ──────────────────────────────────────────────────────
         # x is [batch, channels, length]. Transpose to [batch, length, channels]
