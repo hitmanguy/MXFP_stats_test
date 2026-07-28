@@ -274,19 +274,19 @@ class LanguageEvalHarness:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         token_kwargs = {"token": self.hf_token} if self.hf_token else {}
-
+        dtype = self._get_dtype()
         tokenizer = AutoTokenizer.from_pretrained(self.model_name, **token_kwargs)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
-            torch_dtype=torch.float32,   # always load FP32; cast later if needed
+            torch_dtype=dtype,
             **token_kwargs,
         )
         return model, tokenizer
 
     def _get_dtype(self) -> torch.dtype:
-        if self.quant_mode == "bf16":
-            return torch.bfloat16
-        return torch.float32
+        if self.quant_mode == "fp32":
+            return torch.float32
+        return torch.bfloat16
 
     def run(self) -> Dict[str, Any]:
         """
