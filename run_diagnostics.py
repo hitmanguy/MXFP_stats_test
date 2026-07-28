@@ -170,12 +170,13 @@ def run_layer_diagnostics(cfg: Dict):
     ax.legend()
     
     plt.tight_layout()
-    chart_path = "results/layer_diagnostics.png"
+    safe_name = model_name.replace('/', '_').replace('-', '_')
+    chart_path = f"results/layer_diagnostics_{safe_name}.png"
     plt.savefig(chart_path, dpi=300)
     print(f"Chart saved to {chart_path}")
     
     # Save JSON data
-    data_path = "results/layer_diagnostics.json"
+    data_path = f"results/layer_diagnostics_{safe_name}.json"
     with open(data_path, "w") as f:
         json.dump({"layers": target_layer_keys, "mse": results_mse}, f, indent=2)
     print(f"Data saved to {data_path}")
