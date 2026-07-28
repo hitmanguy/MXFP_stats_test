@@ -113,27 +113,30 @@ def run_layer_diagnostics(cfg: Dict):
                     
                 w_mode, a_mode = _resolve_modes(mode)
                 
-                # Quantize weight
-                w_q, _ = _quantise_weight(orig_weight, w_mode, block_size)
-                w_q = w_q.to(orig_weight.dtype)
-                
-                # Quantize activation
-                x_q, _ = _quantise_activation(x_in.float(), a_mode, block_size)
-                x_q = x_q.to(x_in.dtype)
-                
-                # Forward
                 import torch.nn.functional as F
                 if isinstance(layer, nn.Linear):
+                    w_q, _ = _quantise_weight(orig_weight, w_mode, block_size)
+                    w_q = w_q.to(orig_weight.dtype)
+                    
+                    x_q, _ = _quantise_activation(x_in.float(), a_mode, block_size)
+                    x_q = x_q.to(x_in.dtype)
+                    
                     bias = layer.bias.to(x_q.dtype) if layer.bias is not None else None
                     y_q = F.linear(x_q, w_q, bias)
                 else: # Conv1D
-                    w_t = w_q.t().contiguous()
+                    w_t = orig_weight.t().contiguous()
+                    w_q, _ = _quantise_weight(w_t, w_mode, block_size)
+                    w_q = w_q.t().contiguous().to(orig_weight.dtype)
+                    
+                    x_q, _ = _quantise_activation(x_in.float(), a_mode, block_size)
+                    x_q = x_q.to(x_in.dtype)
+                    
                     bias = layer.bias.to(x_q.dtype) if layer.bias is not None else None
-                    size_out = x_q.shape[:-1] + (w_t.shape[1],)
+                    size_out = x_q.shape[:-1] + (w_q.shape[1],)
                     if bias is not None:
-                        y_q = torch.addmm(bias, x_q.view(-1, x_q.shape[-1]), w_t)
+                        y_q = torch.addmm(bias, x_q.view(-1, x_q.shape[-1]), w_q)
                     else:
-                        y_q = x_q.view(-1, x_q.shape[-1]) @ w_t
+                        y_q = x_q.view(-1, x_q.shape[-1]) @ w_q
                     y_q = y_q.view(size_out)
                     
                 mse = F.mse_loss(y_q.float(), y_base).item()
