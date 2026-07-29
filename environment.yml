@@ -40,6 +40,7 @@ dependencies:
     - huggingface_hub>=0.36.2
     # Testing
     - pytest
+    - lm-eval
     # Audio processing
     - soundfile
     - librosa
