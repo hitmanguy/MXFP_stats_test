@@ -169,42 +169,82 @@ def run_layer_diagnostics(cfg: Dict):
             results_nmse[mode].append(nmse)
 
     # 3. Plotting
-    print("Generating chart...")
-    os.makedirs("results", exist_ok=True)
+    print("Generating charts...")
+    import pandas as pd
+    import seaborn as sns
+    import re
     
-    x = np.arange(len(target_layer_keys))
-    width = 0.8 / len(modes)
+    def parse_layer_name(name):
+        match = re.search(r'\.(\d+)\.', name)
+        layer_idx = int(match.group(1)) if match else -1
+        module = name[match.end():] if match else name
+        return layer_idx, module
+
+    data = []
+    for mode in modes:
+        for idx, name in enumerate(target_layer_keys):
+            l_idx, mod = parse_layer_name(name)
+            data.append({
+                "layer_name": name,
+                "layer_index": l_idx,
+                "module": mod,
+                "format": mode,
+                "sqnr": results_sqnr[mode][idx],
+                "nmse": results_nmse[mode][idx]
+            })
+            
+    df = pd.DataFrame(data)
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(max(14, len(target_layer_keys)*0.25), 10))
-    
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
-    
-    for i, mode in enumerate(modes):
-        offset = (i - len(modes)/2 + 0.5) * width
-        # Plot SQNR (Higher is better)
-        ax1.bar(x + offset, results_sqnr[mode], width, label=mode, color=colors[i % len(colors)])
-        # Plot NMSE (Lower is better)
-        ax2.bar(x + offset, results_nmse[mode], width, label=mode, color=colors[i % len(colors)])
+    # Exclude fp32 and bf16 for plotting to avoid squashing the y-axis
+    plot_df = df[~df["format"].isin(["fp32", "bf16"])]
+    if plot_df.empty:
+        plot_df = df # Fallback if only baseline modes were run
         
-    ax1.set_ylabel('SQNR (dB) ↑')
-    ax1.set_title(f'Layer-wise Signal-to-Quantization-Noise Ratio ({model_name}, {n_chunks} chunks)')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels([]) # Hide x labels for top plot
-    ax1.legend()
-    ax1.grid(axis='y', alpha=0.3)
-    
-    ax2.set_ylabel('Normalized MSE (NMSE) ↓')
-    ax2.set_title(f'Layer-wise Normalized Mean Squared Error ({model_name}, {n_chunks} chunks)')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels([k.split('.')[-1] + f"\n({k.split('.')[2]})" if len(k.split('.')) > 2 else k for k in target_layer_keys], rotation=90, ha='center', fontsize=8)
-    ax2.legend()
-    ax2.grid(axis='y', alpha=0.3)
-    
-    plt.tight_layout()
+    os.makedirs("results", exist_ok=True)
     safe_name = model_name.replace('/', '_').replace('-', '_')
-    chart_path = f"results/layer_diagnostics_{safe_name}.png"
-    plt.savefig(chart_path, dpi=300)
-    print(f"Chart saved to {chart_path}")
+    sns.set_theme(style="whitegrid")
+    
+    # ---------------------------------------------------------
+    # Option 1: Module-Aggregated Bar Chart (Macro View)
+    # ---------------------------------------------------------
+    plt.figure(figsize=(10, 6))
+    sns.barplot(
+        data=plot_df, x='module', y='nmse', hue='format',
+        capsize=0.1, errorbar='sd'
+    )
+    plt.title(f"Average Normalized MSE by Module Type ({model_name})", fontsize=14, pad=15)
+    plt.ylabel("Mean Normalized MSE (Lower is Better)", fontsize=12)
+    plt.xlabel("Transformer Module", fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.axhline(0, color='black', linestyle='--', linewidth=1, alpha=0.5, label='FP32/BF16 Baseline')
+    plt.legend(title="Quantization Format")
+    plt.tight_layout()
+    macro_path = f"results/layer_diagnostics_{safe_name}_macro_bars.png"
+    plt.savefig(macro_path, dpi=300)
+    plt.close()
+    print(f"Macro chart saved to {macro_path}")
+    
+    # ---------------------------------------------------------
+    # Option 3: Faceted Subplots by Module (Micro View)
+    # ---------------------------------------------------------
+    depth_df = plot_df[plot_df["layer_index"] >= 0]
+    if not depth_df.empty:
+        g = sns.FacetGrid(depth_df, col="module", col_wrap=3, height=4, aspect=1.2, sharey=False)
+        g.map_dataframe(sns.lineplot, x="layer_index", y="nmse", hue="format", linewidth=1.5, marker="o", markersize=3)
+        g.set_axis_labels("Layer Depth", "NMSE")
+        g.set_titles(col_template="{col_name}")
+        g.add_legend(title="Format")
+        
+        for ax in g.axes.flatten():
+            ax.axhline(0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+            
+        g.figure.subplots_adjust(top=0.9)
+        g.figure.suptitle(f"Layer-wise NMSE Isolated by Module Type ({model_name})", fontsize=16)
+        
+        micro_path = f"results/layer_diagnostics_{safe_name}_faceted_depth.png"
+        g.savefig(micro_path, dpi=300)
+        plt.close()
+        print(f"Micro chart saved to {micro_path}")
     
     # Save JSON data
     data_path = f"results/layer_diagnostics_{safe_name}.json"
