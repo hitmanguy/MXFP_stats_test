@@ -1,10 +1,11 @@
 model_name: "gpt2"
 seq_len: 1024
 block_size: 32
-calib_chunks: 64
 quant_modes:
   - fp32
   - bf16
+  - mxfp8_e5m2
+  - mxfp8_e4m3
   - mxfp4
   - mxfp4_residual
   - mxfp4_residual_weight_only

@@ -6,6 +6,8 @@ quant_modes:
   - fp32
   - bf16
   - mxfp4
+  - mxfp8_e5m2
+  - mxfp8_e4m3
   - mxfp4_residual
   - mxfp4_residual_weight_only
   - mxfp4_residual_act_only
