@@ -1,4 +1,4 @@
-model_name: "gpt2"
+model_name: "mistralai/Mistral-7B-v0.1"
 seq_len: 1024
 block_size: 32
 calib_chunks: 64
