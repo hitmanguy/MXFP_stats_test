@@ -59,8 +59,10 @@ def run_layer_diagnostics(cfg: Dict):
     model.to(device)
 
     layers = get_linear_layers(model)
-    target_layer_keys = list(layers.keys())
-    print(f"Found {len(target_layer_keys)} linear layers. Targeting all layers for full-depth analysis.")
+    # Exclude lm_head to avoid OOM. lm_head is 32000x4096 and takes ~4GB to fake-quantize.
+    # It's standard to exclude it from layer-wise degradation plots.
+    target_layer_keys = [k for k in layers.keys() if "lm_head" not in k]
+    print(f"Found {len(target_layer_keys)} linear layers (excluding lm_head). Targeting all layers for full-depth analysis.")
 
     # We will accumulate signal power and noise power across all chunks
     # signal_power: sum(y_base ** 2)
@@ -126,6 +128,11 @@ def run_layer_diagnostics(cfg: Dict):
                 accum[mode][layer_name]["signal_power"] += sig_pow
                 accum[mode][layer_name]["noise_power"] += noise_pow
                 accum[mode][layer_name]["count"] += num_elements
+                
+                # Explicitly delete intermediate tensors to avoid memory spikes
+                del w_q, x_q, y_q
+                if bias is not None:
+                    del bias
 
     # Register hooks
     handles = []
