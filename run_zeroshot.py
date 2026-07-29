@@ -31,7 +31,7 @@ def run_zeroshot_evaluation(cfg: Dict):
     print(f"  Zero-Shot Evaluation: {model_name}")
     print(f"  Tasks: {', '.join(tasks)}")
     print(f"  Modes: {', '.join(quant_modes)}")
-    print(f"{='*60}\n")
+    print(f"{'='*60}\n")
     
     # Store all final metrics here for table generation
     all_results = []
