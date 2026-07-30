@@ -143,7 +143,6 @@ def run_language(global_cfg: Dict, modality_cfg: Dict, logger, results_dir: str)
                         weight_bits=bits_per_value(weight_mode),
                         act_bits=bits_per_value(act_mode),
                         eff_bits=eff_bits,
-                        ppl=result.get("ppl"),
                     )
                     all_results.append(result)
                     print(f"  ✓ PPL = {result['ppl']:.4f}  (eff_bits={eff_bits:.2f})")

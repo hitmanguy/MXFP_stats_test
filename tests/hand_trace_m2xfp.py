@@ -187,9 +187,8 @@ for sg_i in range(sub_groups_per_group):
 
     # Bias-clamp range: FP6 index must have same top-4 bits as FP4 index.
     # fp4_idx*4 is the base FP6 index for the same E2M1 level.
-    # Range is [fp4_idx*4 - 1, fp4_idx*4 + 2], BUT both bounds must stay in [0, 15].
-    # Edge case: fp4_idx=7 (FP4 level 6.0) → fp4_idx*4=28, fp4_idx*4-1=27 — both OOB.
-    # In this case clamp to [15, 15]: FP6 max (3.5 * group_scale) is the best we can do.
+    # Range is [fp4_idx*4 - 1, fp4_idx*4 + 2], BUT both bounds must stay in [0, 31].
+    # (Since FP4 max index is 7, fp4_idx*4 + 2 is 30, which fits in 31).
     fp6_idx_min = max(0, min(len(fp6_levels) - 1, fp4_idx * 4 - 1))
     fp6_idx_max = max(0, min(len(fp6_levels) - 1, fp4_idx * 4 + 2))
     fp6_idx = max(fp6_idx_min, min(fp6_idx_max, fp6_idx_raw))

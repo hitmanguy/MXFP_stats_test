@@ -67,16 +67,14 @@ _MXFP4_TIE_LOWER = torch.tensor(
 # ─────────────────────────────────────────────────────────────────────────────
 _FP6_E2M3_LEVELS = torch.tensor(
     [
-        0.0,    0.125, 0.25,  0.375,   # subnormal (exp=0): 0 * 2^0 * j/8
-        0.5,    0.625, 0.75,  0.875,   # normal exp=0:      1.j * 2^0  → 0.5..0.875
-        1.0,    1.25,  1.5,   1.75,    # normal exp=1:      1.j * 2^1  → 1.0..1.75  wait
-        2.0,    2.5,   3.0,   3.5,     # normal exp=2:      1.j * 2^2  → 2.0..3.5   wait
+        0.0,   0.125, 0.25,  0.375, 0.5,   0.625, 0.75,  0.875,
+        1.0,   1.125, 1.25,  1.375, 1.5,   1.625, 1.75,  1.875,
+        2.0,   2.25,  2.5,   2.75,  3.0,   3.25,  3.5,   3.75,
+        4.0,   4.5,   5.0,   5.5,   6.0,   6.5,   7.0,   7.5
     ],
     dtype=torch.float32,
 )
-# Quick sanity: FP6 max = 3.5, FP4 E2M1 max = 6.0  (different — FP6 E2M3 bias=0,
-# so exp field 11 = exp 3 → 1.111 * 2^2 = 3.5 is max before overflow)
-M2XFP_FP6_FORMAT_MAX: float = 3.5
+M2XFP_FP6_FORMAT_MAX: float = 7.5
 
 
 def _round_to_mxfp4_levels(x_abs: torch.Tensor) -> torch.Tensor:
@@ -776,11 +774,9 @@ def fake_quant_m2xfp_act(
     # This ensures top 4 bits of the 6-bit encoding stay identical to the FP4 bits
     # (Alg. 1 steps 6-7; also see cast_to_fp4_em in reference repo).
     #
-    # IMPORTANT: fp4_idx can be 7 (FP4 level 6.0). fp4_idx*4=28 exceeds the
-    # 16-element FP6 grid. Both min AND max must be clamped to [0, 15].
-    # In this edge case fp6_idx snaps to 15 (FP6 max = 3.5 * scale), which is
-    # the highest FP6 value available — correct behaviour per the paper.
-    n_fp6 = len(fp6_levels) - 1                         # = 15
+    # (Since FP4 max index is 7, fp4_idx*4 + 2 is 30, which fits safely within
+    # the 32-element FP6 grid which has max index 31).
+    n_fp6 = len(fp6_levels) - 1                         # = 31
     fp6_idx_min = (fp4_idx * 4 - 1).clamp(min=0, max=n_fp6)
     fp6_idx_max = (fp4_idx * 4 + 2).clamp(min=0, max=n_fp6)
     fp6_idx = fp6_idx_raw.clamp(
