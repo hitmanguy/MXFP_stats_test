@@ -371,7 +371,10 @@ def main():
     logger = EvalLogger(results_dir=args.results_dir)
 
     # Which modalities to run
-    configured = list(cfg.get("modalities", ["language"]))
+    configured = cfg.get("modalities")
+    if not configured:
+        configured = [m for m in MODALITY_RUNNERS.keys() if m in cfg]
+        
     if args.only:
         configured = [m for m in configured if m in args.only]
 
