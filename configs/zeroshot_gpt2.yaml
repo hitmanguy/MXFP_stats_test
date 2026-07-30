@@ -1,0 +1,19 @@
+model_name: "gpt2"
+batch_size: "auto"
+quant_modes:
+  - fp32
+  - bf16
+  - nvfp4
+  - mxfp8_e4m3
+  - mxfp8_e5m2
+  - mxfp8_e5m2_residual
+  - mxfp4
+  - mxfp4_residual
+  - mxfp4_residual_act_only
+  - mxfp4_residual_weight_only
+tasks:
+  - winogrande
+  - piqa
+  - hellaswag
+  - arc_easy
+  - boolq
