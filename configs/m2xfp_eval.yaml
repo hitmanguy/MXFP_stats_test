@@ -1,0 +1,68 @@
+# configs/m2xfp_eval.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# M2XFP single-format full evaluation config.
+# Run with: python run_m2xfp.py --config configs/m2xfp_eval.yaml
+#
+# Only m2xfp is in quant_modes — no other formats. This is a targeted run
+# that establishes M2XFP numbers across all supported modalities and models.
+# Shared params (block_size, device) are top-level; per-model overrides sit
+# inside each model's own section.
+# ─────────────────────────────────────────────────────────────────────────────
+
+block_size: 32
+device: auto
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LANGUAGE  — WikiText-2 perplexity
+# ─────────────────────────────────────────────────────────────────────────────
+language:
+  seeds: [42, 99]
+  n_chunks: 50
+  seq_len: 1024
+  quant_modes:
+    - m2xfp
+
+  models:
+    - model_name: gpt2
+      # No HF_TOKEN needed
+
+    - model_name: meta-llama/Llama-2-7b-hf
+      extra_skip_names:
+        - lm_head
+
+    - model_name: meta-llama/Meta-Llama-3-8B
+      extra_skip_names:
+        - lm_head
+
+    - model_name: mistralai/Mistral-7B-v0.1
+      extra_skip_names:
+        - lm_head
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VISION  — ImageNet-1k top-1 accuracy
+# ─────────────────────────────────────────────────────────────────────────────
+vision:
+  seeds: [42]
+  n_batches: 100
+  batch_size: 32
+  quant_modes:
+    - m2xfp
+
+  models:
+    - model_name: resnet50
+
+    - model_name: deit_small_patch16_224
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPEECH  — LibriSpeech WER
+# ─────────────────────────────────────────────────────────────────────────────
+speech:
+  seeds: [42]
+  n_samples: 200
+  quant_modes:
+    - m2xfp
+  extra_skip_names:
+    - lm_head
+
+  models:
+    - model_name: facebook/wav2vec2-base-960h

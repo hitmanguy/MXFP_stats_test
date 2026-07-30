@@ -1,0 +1,39 @@
+# configs/m2xfp_diagnostic.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# M2XFP layer-wise NMSE diagnostic config.
+# Run with: python run_m2xfp.py --config configs/m2xfp_diagnostic.yaml --diagnostic
+#
+# Only m2xfp is in quant_modes. Covers language models only — diagnostics are
+# layer-wise NMSE/SQNR depth charts over transformer blocks, which is a
+# language-model-specific concept (vision/speech models use different layer
+# structures and are not included here).
+# ─────────────────────────────────────────────────────────────────────────────
+
+block_size: 32
+calib_chunks: 64
+device: auto
+
+quant_modes:
+  - m2xfp
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Models to run layer-wise diagnostics on
+# ─────────────────────────────────────────────────────────────────────────────
+diagnostic_models:
+
+  - model_name: gpt2
+    seq_len: 1024
+    # No HF_TOKEN needed
+
+  - model_name: gpt2-xl
+    seq_len: 1024
+
+  - model_name: meta-llama/Llama-2-7b-hf
+    seq_len: 1024
+    extra_skip_names:
+      - lm_head
+
+  - model_name: mistralai/Mistral-7B-v0.1
+    seq_len: 1024
+    extra_skip_names:
+      - lm_head
