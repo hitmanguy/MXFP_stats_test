@@ -11,3 +11,4 @@ quant_modes:
   - mxfp4_residual
   - mxfp4_residual_weight_only
   - mxfp4_residual_act_only
+  - m2xfp

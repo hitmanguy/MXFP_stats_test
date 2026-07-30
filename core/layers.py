@@ -79,6 +79,10 @@ def _quantise_weight(
     if weight_mode == "nvfp4":
         from core.quantizer import fake_quant_nvfp4
         return fake_quant_nvfp4(weight, block_size=16), 0.0
+    # ── M2XFP (Sg-EM-2bit weight path)
+    if weight_mode == "m2xfp":
+        from core.quantizer import fake_quant_m2xfp_weight
+        return fake_quant_m2xfp_weight(weight, block_size), 0.0
     return weight, 0.0
 
 
@@ -130,6 +134,10 @@ def _quantise_activation(
     elif act_mode == "nvfp4":
         from core.quantizer import fake_quant_nvfp4
         out, rate = fake_quant_nvfp4(x, block_size=16), 0.0
+    # ── M2XFP (Elem-EM-top1 activation path)
+    elif act_mode == "m2xfp":
+        from core.quantizer import fake_quant_m2xfp_act
+        out, rate = fake_quant_m2xfp_act(x, block_size), 0.0
     else:
         raise ValueError(f"Unknown activation quant mode: {act_mode}")
 

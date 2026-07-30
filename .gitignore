@@ -20,6 +20,8 @@ results/eval_ledger.jsonl
 results/*.png
 results_mini/
 results/
+M2XFP4/
+M2XFP4.pdf
 
 # HuggingFace cache
 .cache/

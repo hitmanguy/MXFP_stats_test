@@ -78,6 +78,11 @@ def _resolve_modes(quant_mode: str) -> Tuple[str, str]:
         return "mxfp8_e4m3", quant_mode
     if quant_mode.startswith("mxfp8_e5m2_adaptive"):
         return "mxfp8_e5m2", quant_mode
+    # M2XFP: hybrid format — weight gets Sg-EM-2bit, activation gets Elem-EM-top1
+    # Both sides use the same mode string "m2xfp"; the routing to the correct
+    # quantization function happens in _quantise_weight / _quantise_activation.
+    if quant_mode == "m2xfp":
+        return "m2xfp", "m2xfp"
     return "mxfp4", "mxfp4"
 
 
