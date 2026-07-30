@@ -51,11 +51,12 @@ def run_zeroshot_evaluation(cfg: Dict):
             weight_mode, act_mode = _resolve_modes(mode)
             model = _replace_layers(model, weight_mode, act_mode, block_size)
         
-        model = model.to(torch.bfloat16)
+        model = model.to(torch.bfloat16).to(device)
         
         # 3. Wrap in lm-eval HFLM
         print(f"Wrapping model in lm-eval HFLM wrapper...")
-        lm_eval_model = HFLM(pretrained=model, tokenizer=tokenizer, batch_size=batch_size)
+        # Passing device ensures lm-eval is aware we are already on GPU
+        lm_eval_model = HFLM(pretrained=model, tokenizer=tokenizer, batch_size=batch_size, device=device)
         
         # 4. Run Evaluation
         print(f"Running simple_evaluate on {len(tasks)} tasks...")
