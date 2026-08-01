@@ -1,0 +1,39 @@
+# configs/diagnostic_vision_speech.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Extended per-layer NMSE diagnostic config for vision and speech models.
+# Run with: python run_diagnostics_extended.py --config configs/diagnostic_vision_speech.yaml
+#
+# Three quantization modes are the exact ones present in eval_ledger.csv
+# for these models, giving directly comparable numbers.
+# ─────────────────────────────────────────────────────────────────────────────
+
+quant_modes:
+  - mxfp4
+  - mxfp4_residual_act_only
+  - mxfp4_residual_weight_only
+
+device: auto
+block_size: 32
+
+diagnostic_models:
+
+  # ── Wav2Vec2 ────────────────────────────────────────────────────────────────
+  # n_samples=50 utterances from LibriSpeech test-clean are enough for stable
+  # per-layer statistics (the model has only ~100 target layers).
+  # lm_head is excluded for consistency with the speech evaluation gate.
+  - model_name: facebook/wav2vec2-base-960h
+    n_samples: 50
+    extra_skip_names:
+      - lm_head
+
+  # ── ResNet-18 ───────────────────────────────────────────────────────────────
+  # 20 batches × 16 images = 320 images from ImageNet-1k val.
+  # Requires HF_TOKEN for ILSVRC/imagenet-1k access.
+  - model_name: resnet18
+    n_batches: 20
+    batch_size: 16
+
+  # ── ResNet-50 ───────────────────────────────────────────────────────────────
+  - model_name: resnet50
+    n_batches: 20
+    batch_size: 16

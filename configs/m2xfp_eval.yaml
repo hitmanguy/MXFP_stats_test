@@ -42,7 +42,7 @@ language:
 # VISION  — ImageNet-1k top-1 accuracy
 # ─────────────────────────────────────────────────────────────────────────────
 vision:
-  seeds: [42]
+  seeds: [42, 99]
   n_batches: 100
   batch_size: 32
   quant_modes:
@@ -57,7 +57,7 @@ vision:
 # SPEECH  — LibriSpeech WER
 # ─────────────────────────────────────────────────────────────────────────────
 speech:
-  seeds: [42]
+  seeds: [42, 99]
   n_samples: 200
   quant_modes:
     - m2xfp

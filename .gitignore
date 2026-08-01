@@ -22,6 +22,7 @@ results_mini/
 results/
 M2XFP4/
 M2XFP4.pdf
+research_paper/
 
 # HuggingFace cache
 .cache/
