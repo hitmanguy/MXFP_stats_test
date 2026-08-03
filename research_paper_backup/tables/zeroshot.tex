@@ -1,0 +1,38 @@
+\begin{table}[t]
+  \centering
+  \caption{Zero-shot task accuracy (\SI{}{\percent}) on downstream benchmark evaluations for GPT-2 and Llama-2-7B. Bold indicates the higher-performing single-sided residue allocation.}
+  \label{tab:zeroshot}
+  \setlength{\tabcolsep}{2.5pt}
+  \renewcommand{\arraystretch}{1.1}
+  \scriptsize
+  \begin{tabular}{|l|l|r|r|r|r|r|}
+    \hline
+    Model & Task & BF16 & \fpfour & \mtwo & \fpfourres{} (Act) & \fpfourres{} (Wt) \\
+    \hline
+    GPT-2 & WinoGrande & 51.6 & 48.5 & 49.8 & \textbf{52.6} & 51.7 \\
+    \hline
+          & PIQA       & 62.3 & 58.2 & 60.1 & \textbf{61.4} & 58.3 \\
+    \hline
+          & HellaSwag  & 31.3 & 29.0 & 30.6 & \textbf{29.9} & 29.8 \\
+    \hline
+          & ARC-Easy   & 40.2 & 38.3 & 37.8 & \textbf{39.5} & 38.7 \\
+    \hline
+          & BoolQ\textdagger & 50.2 & 59.6 & 57.6 & 57.6 & 56.7 \\
+    \hline
+    Llama-2-7B & WinoGrande & 69.1 & 66.5 & 67.6 & \textbf{68.8} & 68.1 \\
+    \hline
+               & PIQA       & 78.4 & 76.9 & 77.8 & \textbf{77.9} & 77.5 \\
+    \hline
+               & HellaSwag  & 76.1 & 70.6 & 74.5 & \textbf{74.1} & 74.0 \\
+    \hline
+               & ARC-Easy   & 74.1 & 69.4 & 73.4 & \textbf{72.3} & 71.3 \\
+    \hline
+               & BoolQ      & 79.4 & 72.8 & 77.3 & \textbf{77.1} & 76.6 \\
+    \hline
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\columnwidth}
+    \footnotesize
+    \textdagger GPT-2 unquantised (BF16) accuracy on BoolQ is statistically indistinguishable from the \SI{50}{\percent} chance baseline; nominal gains under quantisation represent noise and are excluded from average gap recovery calculations.
+  \end{minipage}
+\end{table}

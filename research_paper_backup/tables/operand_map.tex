@@ -1,0 +1,42 @@
+% Operand map: what each source register carries, per instruction. Mirrors
+% MXDOTP's "Table I: Operands". Symbols: pA/pW/pAr = packed activation / weight /
+% residue-activation element vectors; xA/xAr/xW = E8M0 block scales; acc = FP32
+% accumulator. 64-bit sources are XIF dual-read register pairs (r:r+1); MXFINAL's
+% two sources are plain 32-bit reads, which is exactly what lets the residue
+% scales and accumulator fit without a third 64-bit port.
+\begin{table}[t]
+  \centering
+  \caption{Operand map. $p_A,p_W,p_{Ar}$: packed activation, weight, and
+           residue-activation element vectors; $x_A,x_{Ar},x_W$: E8M0 block
+           scales; \textit{acc}: FP32 accumulator. Braces denote fields packed
+           into one register word.}
+  \label{tab:operands}
+  \scriptsize
+  \setlength{\tabcolsep}{2pt}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{|l|c|c|c|}
+    \hline
+    Instruction & \insn{rs1} & \insn{rs2} & \insn{rs3} \\
+    \hline
+    \MXFUSED\,(\fpfour,\fpeight)
+        & $p_A$ & $p_W$ & $\{x_W,x_A,\mathit{acc}\}$ \\
+    \hline
+    \MXFUSED\,(\mtwo)
+        & $p_A$ & $p_W$ & $\{\mathrm{md},x_W,x_A,\mathit{acc}\}$ \\
+    \hline
+    \MXDOTP\,(\fpfourres)
+        & $p_A$ & $p_W$ & $p_{Ar}$ \\
+    \hline
+    \MXFINAL\,(\fpfourres)
+        & $\{x_A,x_{Ar},x_W\}$ & $\mathit{acc}$ & --- \\
+    \hline
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\columnwidth}
+    \footnotesize
+    $p_A,p_W,p_{Ar}$ and \MXFUSED's \insn{rs3} are \SI{64}{\bit} dual-read
+    register pairs; \MXFINAL's \insn{rs1},\insn{rs2} are plain \SI{32}{\bit}
+    reads. \MXDOTP{} writes no register; \MXFINAL{} and \MXFUSED{} write the
+    FP32 result.
+  \end{minipage}
+\end{table}

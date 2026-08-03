@@ -1,0 +1,98 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{ocp2023mx}
+\citation{rouhani2023microscaling}
+\citation{m2xfp2026}
+\citation{islamoglu2025mxdotp}
+\citation{wipfli2026vmxdotp}
+\citation{lutz2024fp8dot}
+\citation{m2xfp2026}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {I-A}}Related work}{1}{subsection.1.1}\protected@file@percent }
+\newlabel{sec:intro-related}{{\mbox  {I-A}}{1}{Related work}{subsection.1.1}{}}
+\citation{openhw_cvxif}
+\citation{m2xfp2026}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {I-B}}Contributions}{2}{subsection.1.2}\protected@file@percent }
+\newlabel{sec:intro-contrib}{{\mbox  {I-B}}{2}{Contributions}{subsection.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Background}{2}{section.2}\protected@file@percent }
+\newlabel{sec:background}{{II}{2}{Background}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Microscaling formats}{2}{subsection.2.1}\protected@file@percent }
+\newlabel{sec:bg-mx}{{\mbox  {II-A}}{2}{Microscaling formats}{subsection.2.1}{}}
+\newlabel{eq:base}{{1}{2}{Microscaling formats}{equation.1}{}}
+\newlabel{eq:factor}{{2}{2}{Microscaling formats}{equation.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Coprocessor interface}{2}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:bg-xif}{{\mbox  {II-B}}{2}{Coprocessor interface}{subsection.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Motivation for MXFP4R}{2}{subsection.2.3}\protected@file@percent }
+\newlabel{sec:bg-motiv}{{\mbox  {II-C}}{2}{Motivation for \fpfourres }{subsection.2.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III}MXFP4R{} Analysis}{2}{section.3}\protected@file@percent }
+\newlabel{sec:analysis}{{III}{2}{\fpfourres {} Analysis}{section.3}{}}
+\citation{m2xfp2026}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Post-training quantisation accuracy. WikiText-2 perplexity ($\downarrow $), ImageNet-1k top-1 ($\uparrow $), LibriSpeech test-clean WER ($\downarrow $). All layers quantised; BF16 is the unquantised reference. The two rules below MXFP4R{} are single-sided and symmetric ablations of the residue construction.}}{3}{table.1}\protected@file@percent }
+\newlabel{tab:accuracy}{{I}{3}{Post-training quantisation accuracy. WikiText-2 perplexity ($\downarrow $), ImageNet-1k top-1 ($\uparrow $), LibriSpeech test-clean WER ($\downarrow $). All layers quantised; BF16 is the unquantised reference. The two rules below \fpfourres {} are single-sided and symmetric ablations of the residue construction}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Zero-shot task accuracy (\SI {}{\percent }) on downstream benchmark evaluations for GPT-2 and Llama-2-7B. Bold indicates the higher-performing single-sided residue allocation.}}{3}{table.2}\protected@file@percent }
+\newlabel{tab:zeroshot}{{II}{3}{Zero-shot task accuracy (\SI {}{\percent }) on downstream benchmark evaluations for GPT-2 and Llama-2-7B. Bold indicates the higher-performing single-sided residue allocation}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Zero-shot task validation}{3}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:analysis-zeroshot}{{\mbox  {III-A}}{3}{Zero-shot task validation}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Microarchitecture}{3}{section.4}\protected@file@percent }
+\newlabel{sec:arch}{{IV}{3}{Microarchitecture}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Residue and metadata-augmented variants}{3}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:arch-variants}{{\mbox  {IV-A}}{3}{Residue and metadata-augmented variants}{subsection.4.1}{}}
+\newlabel{eq:res-base}{{3}{3}{Residue and metadata-augmented variants}{equation.3}{}}
+\newlabel{eq:res-factor}{{4}{3}{Residue and metadata-augmented variants}{equation.4}{}}
+\newlabel{eq:m2}{{5}{3}{Residue and metadata-augmented variants}{equation.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Instruction interface}{3}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:arch-isa}{{\mbox  {IV-B}}{3}{Instruction interface}{subsection.4.2}{}}
+\citation{lutz2024fp8dot,islamoglu2025mxdotp}
+\citation{islamoglu2025mxdotp}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Instruction set and operand map. R4-type, custom-0 opcode \texttt  {\relax \fontsize  {9}{10pt}\selectfont  0x0B}; \texttt  {\relax \fontsize  {9}{10pt}\selectfont  funct2} selects the MX format, \texttt  {\relax \fontsize  {9}{10pt}\selectfont  funct3} the operation. MXFP4R{} requires two native instructions, since it carries a third \SI {64}{\bit } source and a second block scale (\S  \ref {sec:arch-residue}).}}{4}{table.3}\protected@file@percent }
+\newlabel{tab:isa}{{III}{4}{Instruction set and operand map. R4-type, custom-0 opcode \insn {0x0B}; \insn {funct2} selects the MX format, \insn {funct3} the operation. \fpfourres {} requires two native instructions, since it carries a third \SI {64}{\bit } source and a second block scale (\S \ref {sec:arch-residue})}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Scale-free accumulation frame}{4}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:arch-frame}{{\mbox  {IV-C}}{4}{Scale-free accumulation frame}{subsection.4.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Derived sliding-frame constants. Frame width is set by the element format alone; the E8M0 scale range does not appear.}}{4}{table.4}\protected@file@percent }
+\newlabel{tab:frames}{{IV}{4}{Derived sliding-frame constants. Frame width is set by the element format alone; the E8M0 scale range does not appear}{table.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Per-format scale-free accumulation frame, drawn to scale and aligned at bit~0. The sum of products is resident and exact at each format's anchor; only the FP32 accumulator slides (Table~\ref {tab:frames} lists all widths).}}{4}{figure.1}\protected@file@percent }
+\newlabel{fig:frame}{{1}{4}{Per-format scale-free accumulation frame, drawn to scale and aligned at bit~0. The sum of products is resident and exact at each format's anchor; only the FP32 accumulator slides (Table~\ref {tab:frames} lists all widths)}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Format-specialised engines}{4}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:arch-engines}{{\mbox  {IV-D}}{4}{Format-specialised engines}{subsection.4.4}{}}
+\citation{m2xfp2026}
+\citation{m2xfp2026}
+\citation{m2xfp2026}
+\citation{m2xfp2026}
+\citation{wolf_yosys}
+\citation{ajayi2019openroad}
+\citation{snyder_verilator}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces MXFP4\ fused-engine datapath, the exemplar of the four format-specialised engines. Sixteen lanes are decoded and multiplied, summed into a resident sum of products, combined with the sliding FP32 accumulator into the 63-bit frame word, then normalised and rounded to FP32; the block scale is hoisted once in the front end and re-enters only on the result exponent.}}{5}{figure.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}MXFP4R: dual-scale placement}{5}{subsection.4.5}\protected@file@percent }
+\newlabel{sec:arch-residue}{{\mbox  {IV-E}}{5}{\fpfourres : dual-scale placement}{subsection.4.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-F}}M\textsuperscript  {2}XFP4: on-chip top-1 re-derivation}{5}{subsection.4.6}\protected@file@percent }
+\newlabel{sec:arch-m2}{{\mbox  {IV-F}}{5}{\mtwo : on-chip top-1 re-derivation}{subsection.4.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Evaluation}{5}{section.5}\protected@file@percent }
+\newlabel{sec:eval}{{V}{5}{Evaluation}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Setup}{5}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:eval-setup}{{\mbox  {V-A}}{5}{Setup}{subsection.5.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Synthesis and throughput analysis}{5}{subsection.5.2}\protected@file@percent }
+\newlabel{sec:eval-synthesis}{{\mbox  {V-B}}{5}{Synthesis and throughput analysis}{subsection.5.2}{}}
+\bibstyle{IEEEtran}
+\bibdata{references}
+\bibcite{ocp2023mx}{1}
+\bibcite{rouhani2023microscaling}{2}
+\bibcite{m2xfp2026}{3}
+\bibcite{islamoglu2025mxdotp}{4}
+\bibcite{wipfli2026vmxdotp}{5}
+\bibcite{lutz2024fp8dot}{6}
+\bibcite{openhw_cvxif}{7}
+\bibcite{wolf_yosys}{8}
+\bibcite{ajayi2019openroad}{9}
+\bibcite{snyder_verilator}{10}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Per-engine out-of-context synthesis, Nangate45 \SI {45}{\nano \meter }, all constrained at a common period. Zero hold and zero electrical violations in every run.}}{6}{table.5}\protected@file@percent }
+\newlabel{tab:synth}{{V}{6}{Per-engine out-of-context synthesis, Nangate45 \SI {45}{\nano \meter }, all constrained at a common period. Zero hold and zero electrical violations in every run}{table.5}{}}
+\newlabel{fig:throughput_comparison}{{V}{6}{Per-engine out-of-context synthesis, Nangate45 \SI {45}{\nano \meter }, all constrained at a common period. Zero hold and zero electrical violations in every run}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Unified evaluation framework}{6}{subsection.5.3}\protected@file@percent }
+\newlabel{sec:eval-compare}{{\mbox  {V-C}}{6}{Unified evaluation framework}{subsection.5.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{6}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{VI}{6}{Conclusion}{section.6}{}}
+\@writefile{toc}{\contentsline {section}{References}{6}{section*.2}\protected@file@percent }
+\gdef \@abspage@last{6}

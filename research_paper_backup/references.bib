@@ -1,0 +1,209 @@
+%==============================================================================
+% references.bib -- MXDOTP / VLSID 2027
+%
+% CITATION HYGIENE RULES FOR THIS FILE:
+%   1. Every entry must have been seen at its source (arXiv abs page, IEEE
+%      Xplore, or the spec PDF). No entry reconstructed from memory.
+%   2. Entries whose venue/pages are not yet confirmed carry a
+%      "% VERIFY:" comment. Clear those before the camera-ready.
+%   3. Keys follow <firstauthor><year><shorttitle>.
+%==============================================================================
+
+%------------------------------------------------------------------------------
+% PRIOR ART, MXFP8-ONLY -- venue and content CONFIRMED by reading the full
+% paper (arXiv HTML) and the released RTL (pulp-platform/cvfpu,
+% feature/mxdotp branch). Its format enum is FP32|FP64|FP16|FP8|FP16ALT|
+% FP8ALT -- no FP4/FP6 anywhere. Do not describe this as multi-format.
+%------------------------------------------------------------------------------
+@inproceedings{islamoglu2025mxdotp,
+  author    = {{\.I}slamo{\u{g}}lu, Gamze and Bertaccini, Luca and
+               Prasad, Arpan Suravi and Conti, Francesco and
+               Garofalo, Angelo and Benini, Luca},
+  title     = {{MXDOTP}: A {RISC-V} {ISA} Extension for Enabling
+               Microscaling ({MX}) Floating-Point Dot Products},
+  booktitle = {Proc. IEEE 36th Int'l Conf. on Application-specific Systems,
+               Architectures and Processors (ASAP)},
+  year      = {2025},
+  note      = {arXiv:2505.13159},
+}
+
+%------------------------------------------------------------------------------
+% PRIMARY CONCURRENT WORK -- CONFIRMED (full text read) to already support
+% MXFP4, not just MXFP8. This is now the closest prior art, ahead of
+% islamoglu2025mxdotp. Do NOT claim priority on sub-byte MX ISA support
+% anywhere in the paper; VMXDOTP has it first, in 12nm silicon, published
+% March 2026. Full author list confirmed from arXiv HTML.
+%------------------------------------------------------------------------------
+@inproceedings{wipfli2026vmxdotp,
+  author    = {Wipfli, Max and {\.I}slamo{\u{g}}lu, Gamze and
+               Kunhi Purayil, Navaneeth and Garofalo, Angelo and
+               Benini, Luca},
+  title     = {{VMXDOTP}: A {RISC-V} Vector {ISA} Extension for Efficient
+               Microscaling ({MX}) Format Acceleration},
+  booktitle = {Proc. Design, Automation and Test in Europe Conf. (DATE)},
+  year      = {2026},
+  note      = {arXiv:2603.04979},
+}
+
+%------------------------------------------------------------------------------
+% FORMAT SPECIFICATIONS AND FORMAT-LEVEL STUDIES
+%------------------------------------------------------------------------------
+@techreport{ocp2023mx,
+  author      = {{Open Compute Project}},
+  title       = {{OCP} Microscaling Formats ({MX}) Specification, Version 1.0},
+  institution = {Open Compute Project Foundation},
+  year        = {2023},
+}
+
+%------------------------------------------------------------------------------
+% The empirical companion to the OCP spec (33 authors, Microsoft/AMD/Intel/
+% Meta/NVIDIA/Qualcomm). Full text read. Table 2 (direct-cast inference) is
+% the source of the "plain MXFP4 can be severely broken" motivating claim --
+% MobileNetV2 top-1 collapses to 0.25% direct-cast. Cite this table directly
+% rather than re-deriving an accuracy-degradation argument.
+%------------------------------------------------------------------------------
+@article{rouhani2023microscaling,
+  author  = {Rouhani, Bita Darvish and Zhao, Ritchie and More, Ankit and
+             Hall, Mathew and Khodamoradi, Alireza and Deng, Summer and
+             Choudhary, Dhruv and Cornea, Marius and Dellinger, Eric and
+             Denolf, Kristof and Dusan, Stosic and Elango, Venmugil and
+             Golub, Maximilian and Heinecke, Alexander and
+             James-Roxby, Phil and Jani, Dharmesh and Kolhe, Gaurav and
+             Langhammer, Martin and Li, Ada and Melnick, Levi and
+             Mesmakhosroshahi, Maral and Rodriguez, Andres and
+             Schulte, Michael and Shafipour, Rasoul and Shao, Lei and
+             Siu, Michael and Dubey, Pradeep and Micikevicius, Paulius and
+             Naumov, Maxim and Verrilli, Colin and Wittig, Ralph and
+             Burger, Doug and Chung, Eric},
+  title   = {Microscaling Data Formats for Deep Learning},
+  journal = {arXiv preprint arXiv:2310.10537},
+  year    = {2023},
+}
+
+%------------------------------------------------------------------------------
+% Full author list CONFIRMED from the arXiv PDF (11 authors, SJTU + Huawei).
+% Full text read -- Table 2/3/4's accuracy numbers are cited directly in our
+% Evaluation rather than re-measured. Group=32/subgroup=8 configuration and
+% the Alg.1 top-1 tie-break rule (lowest index) both independently confirm
+% decisions already recorded in our own project handoffs.
+%------------------------------------------------------------------------------
+@inproceedings{m2xfp2026,
+  author    = {Hu, Weiming and Zhang, Zihan and Zhang, Haoyan and
+               Zhang, Chen and Guo, Cong and Feng, Yu and Hu, Tianchi and
+               Li, Guanglin and Hu, Guipeng and Wang, Junsong and
+               Leng, Jingwen},
+  title     = {{M\textsuperscript{2}XFP}: A Metadata-Augmented Microscaling
+               Data Format for Efficient Low-bit Quantization},
+  booktitle = {Proc. ACM Int'l Conf. on Architectural Support for Programming
+               Languages and Operating Systems (ASPLOS), Volume 2},
+  year      = {2026},
+  note      = {arXiv:2601.19213},
+  doi       = {10.1145/3779212.3790185},
+}
+
+%------------------------------------------------------------------------------
+% ARITHMETIC / DATAPATH PRIOR ART -- this is where the scale-free
+% ("early accumulation") sliding-frame technique actually originates.
+% MXDOTP's own paper credits this design to Lutz et al. explicitly
+% ("we adopt the principle of early accumulation introduced in [3]").
+% Cite THIS paper for the technique's origin in Sec. III, not "the
+% reference implementation" -- islamoglu2025mxdotp is the party that
+% extended it to two independent MX block scales, not the inventor.
+% Full author list and page range confirmed via IEEE Xplore doc 10579354.
+%------------------------------------------------------------------------------
+@inproceedings{lutz2024fp8dot,
+  author    = {Lutz, David R. and Saini, Anisha and Kroes, Mairin and
+               Elmer, Thomas and Valsaraju, Harsha},
+  title     = {Fused {FP8} 4-Way Dot Product With Scaling and {FP32}
+               Accumulation},
+  booktitle = {Proc. IEEE 31st Symposium on Computer Arithmetic (ARITH)},
+  pages     = {40--47},
+  year      = {2024},
+}
+
+%------------------------------------------------------------------------------
+% HOST CORE AND INTERFACE
+%------------------------------------------------------------------------------
+@misc{openhw_cv32e40x,
+  author       = {{OpenHW Group}},
+  title        = {{CV32E40X} User Manual},
+  howpublished = {\url{https://docs.openhwgroup.org/projects/cv32e40x-user-manual/}},
+  year         = {2024},
+}
+
+@misc{openhw_cvxif,
+  author       = {{OpenHW Group}},
+  title        = {{CORE-V} eXtension Interface ({CV-X-IF}) Specification},
+  howpublished = {\url{https://docs.openhwgroup.org/projects/openhw-group-core-v-xif/}},
+  year         = {2024},
+}
+
+@inproceedings{zaruba2021snitch,
+  author    = {Zaruba, Florian and Schuiki, Fabian and Hoefler, Torsten and
+               Benini, Luca},
+  title     = {{Snitch}: A Tiny Pseudo Dual-Issue Processor for Area and
+               Energy Efficient Execution of Floating-Point Intensive
+               Workloads},
+  journal   = {IEEE Transactions on Computers},
+  volume    = {70},
+  number    = {11},
+  pages     = {1845--1860},
+  year      = {2021},
+}
+
+%------------------------------------------------------------------------------
+% TOOLING -- cite these in the Evaluation setup paragraph so the flow is
+% reproducible. Reviewers of an open-flow paper check for exactly this.
+%------------------------------------------------------------------------------
+% VERIFY: consider citing the TCAD 2024 OpenROAD journal paper instead
+@inproceedings{ajayi2019openroad,
+  author    = {Ajayi, Tutu and Blaauw, David and others},
+  title     = {{OpenROAD}: Toward a Self-Driving, Open-Source Digital Layout
+               Implementation Tool Chain},
+  booktitle = {Proc. Government Microcircuit Applications and Critical
+               Technology Conference (GOMACTech)},
+  year      = {2019}
+}
+
+@misc{wolf_yosys,
+  author       = {Wolf, Clifford},
+  title        = {{Yosys} Open {SYnthesis} {S}uite},
+  howpublished = {\url{https://yosyshq.net/yosys/}},
+}
+
+@misc{snyder_verilator,
+  author       = {Snyder, Wilson},
+  title        = {{Verilator}: Open-Source {SystemVerilog} Simulator},
+  howpublished = {\url{https://verilator.org}},
+}
+
+@misc{microxcaling,
+  author       = {{Microsoft}},
+  title        = {{microxcaling}: {PyTorch} Emulation Library for
+                  Microscaling Formats},
+  howpublished = {\url{https://github.com/microsoft/microxcaling}},
+  year         = {2023},
+}
+
+%------------------------------------------------------------------------------
+% STANDARDS
+%------------------------------------------------------------------------------
+@book{ieee754_2019,
+  author    = {{IEEE}},
+  title     = {{IEEE} Standard for Floating-Point Arithmetic,
+               {IEEE} Std 754-2019},
+  publisher = {IEEE},
+  year      = {2019},
+}
+
+%------------------------------------------------------------------------------
+% Reference RTL, read directly. Cited alongside the paper wherever a claim is
+% about what the implementation DOES rather than what the paper says.
+%------------------------------------------------------------------------------
+@misc{cvfpu,
+  author       = {{PULP Platform}},
+  title        = {{CVFPU} --- {\tt feature/mxdotp} branch},
+  howpublished = {\url{https://github.com/pulp-platform/cvfpu/tree/feature/mxdotp}},
+  year         = {2025},
+  note         = {Accessed July 2026},
+}

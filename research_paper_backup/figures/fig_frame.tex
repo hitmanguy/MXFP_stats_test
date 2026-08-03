@@ -1,0 +1,63 @@
+% Fig. 1 -- per-format scale-free accumulation frame, to scale, aligned at bit 0.
+% Each field's LEFT edge is computed directly (cumulative offset from bit 0)
+% rather than chained off a neighbour's anchor, so fields cannot overlap.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  seg/.style={draw, minimum height=5.4mm, inner sep=0pt, outer sep=0pt, anchor=south west},
+  tny/.style={font=\tiny},
+]
+  \def\u{0.052}\def\ob{0.16}\def\ha{0.56}\def\lx{-5.55}
+  \def\wA{24*\u}  % 24-bit acc mantissa field width (constant across formats)
+
+  % {y}{key}{disp}{SoP bits}{REMAIN bits}{annotate top row 0/1}
+  \newcommand{\frmrow}[6]{%
+    \pgfmathsetmacro{\wS}{#4*\u}\pgfmathsetmacro{\wR}{#5*\u}%
+    \pgfmathsetmacro{\wAv}{\wA}%
+    % left edges, computed directly from bit 0 (x=0), never chained off a
+    % neighbour's opposite corner -- this is what the overlap bug violated.
+    \pgfmathsetmacro{\xSoP}{-\wS}%
+    \pgfmathsetmacro{\xG}{\xSoP-\ob}%
+    \pgfmathsetmacro{\xAcc}{\xG-\wAv}%
+    \pgfmathsetmacro{\xSgn}{\xAcc-\ob}%
+    \node[seg, fill=black!8,   minimum width=\ob cm] (s#2)   at (\xSgn,#1) {};
+    \node[seg, fill=orange!24, minimum width=\wAv cm] (acc#2) at (\xAcc,#1) {\tiny 24};
+    \node[seg, fill=black!8,   minimum width=\ob cm] (g#2)   at (\xG,#1)   {};
+    \node[seg, fill=blue!16,   minimum width=\wS cm] (sop#2) at (\xSoP,#1) {\tiny #4};
+    \node[seg, fill=black!12,  minimum width=\wR cm] (rem#2) at (0,#1)     {\tiny #5};
+    \node[seg, fill=black!8,   minimum width=\ob cm] (st#2)  at ($(rem#2.south east)$) {};
+    \draw[very thick] (0,#1) -- (0,{#1+\ha});
+    \node[anchor=east] at (\lx,{#1+\ha/2}) {#3};
+    \ifnum#6=1
+      \node[tny, anchor=south] at ($(acc#2.north)+(0,0.58)$) {accumulator slides};
+      \draw[-{Stealth[length=3pt]}, thick]
+           ($(acc#2.north west)+(0.10,0.40)$) -- ($(acc#2.north east)+(-0.10,0.40)$);
+      \node[tny, anchor=south] at ($(sop#2.north)+(0,0.16)$) {$\sum a_ib_i$ resident (no shifter)};
+      \node[tny, anchor=south] at (0,{#1+\ha+0.08}) {bit\,0};
+      \draw[decorate, decoration={brace, amplitude=3pt}]
+           ($(rem#2.south east)+(0,-0.06)$)
+           -- node[below, tny, yshift=1pt] {leading-one scan (LZC)}
+           ($(s#2.south east)+(0,-0.06)$);
+    \fi
+  }
+
+  \frmrow{0.0}{FF}{MXFP8}{69}{25}{1}
+  \frmrow{-1.25}{MM}{M$^2$XFP4}{17}{25}{0}
+  \frmrow{-2.20}{RR}{MXFP4R}{12}{36}{0}
+  \frmrow{-3.15}{PP}{MXFP4}{12}{25}{0}
+
+  % ---- block scale bypasses the wide word, enters the exponent only ----
+  \coordinate (base) at (\lx,{-3.15-0.55});
+  \node[tny, anchor=west, align=center] (bscale) at ($(base)+(0.55,-0.30)$)
+       {block scale\\$S_a{+}S_b$};
+  \node[draw, dashed, rounded corners, fill=green!8, tny, anchor=west]
+       (rexp) at ($(bscale.east)+(0.55,0)$) {result exponent};
+  \draw[-{Stealth[length=4pt]}, dashed, green!45!black] (bscale.east) -- (rexp.west);
+  \node[tny, anchor=west] at ($(rexp.east)+(0.12,0)$)
+       {applied here only --- never the wide word};
+
+  % ---- field legend ----
+  \node[tny, anchor=west, align=left] at ($(base)+(0.55,-0.86)$)
+       {\tikz\draw[fill=orange!24](0,0)rectangle(0.22,0.16);\, 24\,b acc mantissa (slides)\quad
+        \tikz\draw[fill=blue!16](0,0)rectangle(0.22,0.16);\, sum of products ($\Sigma P$)\quad
+        \tikz\draw[fill=black!12](0,0)rectangle(0.22,0.16);\, REMAIN\,$+$\,sticky};
+\end{tikzpicture}

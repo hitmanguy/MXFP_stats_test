@@ -1,0 +1,77 @@
+\section{Introduction}
+\label{sec:intro}
+
+Microscaling (MX) formats, standardised by the Open Compute
+Project~\cite{ocp2023mx}, associate a block of $k$ elements with one 8-bit
+power-of-two exponent (E8M0) and encode each element in a narrow floating-point
+type. Four-bit MX has been shown adequate for a range of inference and even
+training workloads~\cite{rouhani2023microscaling}, yet its single shared
+power-of-two scale bounds the precision available within a block. Workloads
+sensitive to this bound have motivated augmented four-bit formats:
+\mtwo{}~\cite{m2xfp2026} allocates per-subgroup metadata to recover precision,
+and NVFP4 format replaces the conventional E8M0 block scale with a higher-precision FP8 block scale. These are proposed
+and evaluated as data formats; their realisation cost, measured against the formats they would replace on identical hardware, is largely absent from the
+literature.
+
+This work examines a further variant that we propose, \fpfourres, in which an activation block
+is represented as the sum of two \fpfour{} blocks carrying independent E8M0
+scales, while weight blocks remain plain \fpfour. The construction is
+asymmetric by design: weight footprint is that of \fpfour, whereas activation
+precision approaches that of \fpeight. For inference, where weights dominate
+memory and bandwidth, this is a favourable position \emph{if} the arithmetic
+can be executed at competitive throughput.
+
+That condition is the subject of the paper. A \fpfourres{} dot product forms
+two product terms under two independent scales and therefore needs three
+genuine 64-bit vector operands and two independent block scales at once,
+exceeding a three-read-port register file. The resulting throughput cannot be
+inferred from the format definition and must be measured on synthesised
+hardware. We do so by implementing \fpfourres{} together with \fpfour,
+\fpeight, and \mtwo{} as independent, format-specialised engines behind one
+coprocessor, and
+characterising all four on a common core, synthesis flow, and technology node.
+
+\subsection{Related work}
+\label{sec:intro-related}
+
+Two RISC-V extensions for MX dot products precede this
+work. MXDOTP~\cite{islamoglu2025mxdotp} adds an \fpeight{} dot-product unit to
+a Snitch core and supplies block scales through Stream Semantic Registers.
+VMXDOTP~\cite{wipfli2026vmxdotp} extends the RISC-V Vector specification to
+cover \fpeight{} and \fpfour, resolving operand-port pressure by
+time-multiplexing vector register-file reads, and reports
+\SI{250}{\giga\flop\per\second} at \SI{1632}{\giga\flop\per\second\per\watt}
+for \fpfour{} in \SI{12}{\nano\meter}. This work targets a different point in
+the design space: a coprocessor behind the standardised \xif{} interface,
+hosted by a compact embedded core, covering formats these extensions do not.
+Neither prior extension supports \mtwo{} nor our proposed \fpfourres.
+
+The accumulation datapath common to all three works derives from the anchored
+fixed-point scheme of Lutz \emph{et al.}~\cite{lutz2024fp8dot}, which
+MXDOTP extended to the two independent block scales of an MX dot product. The
+present contribution is the derivation of this scheme for four distinct
+formats, each with its own frame geometry.
+
+\mtwo{} was introduced as an algorithm–hardware co-design with a systolic-array
+accelerator~\cite{m2xfp2026}; the engine described here is a RISC-V coprocessor
+realisation that re-derives the per-subgroup top-1 element within the datapath.
+
+\subsection{Contributions}
+\label{sec:intro-contrib}
+
+\begin{enumerate}
+  \item \fpfourres, a residue MX format, and its hardware evaluation: on a
+        common \SI{45}{\nano\meter} flow, its throughput relative to \fpeight{}
+        is \DATAGAP{X}$\times$ (\S\ref{sec:eval-residue}), locating its benefit
+        in weight memory (\S\ref{sec:analysis}) rather than compute.
+  \item A four-format comparison of \fpfour, \fpeight, \mtwo, and \fpfourres{}
+        on one host core and one synthesis flow, removing the process and
+        system-scope differences that complicate cross-paper MX comparisons
+        (\S\ref{sec:eval}).
+  \item A per-format scale-free accumulation frame, with anchor and width
+        derived in closed form for each format and shown tight against exact
+        rational arithmetic over the full E8M0 scale range
+        (\S\ref{sec:arch-frame}).
+  \item A coprocessor conforming to the \xif{} interface, portable across
+        compliant host cores (\S\ref{sec:bg-xif}).
+\end{enumerate}

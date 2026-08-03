@@ -1,0 +1,46 @@
+\begin{table*}[t]
+  \centering
+  \caption{Post-training quantisation accuracy. WikiText-2 perplexity
+           ($\downarrow$), ImageNet-1k top-1 ($\uparrow$), LibriSpeech
+           test-clean WER ($\downarrow$). All layers quantised; BF16 is the
+           unquantised reference. The two rules below \fpfourres{} are
+           single-sided and symmetric ablations of the residue construction.}
+  \label{tab:accuracy}
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.1}
+  \small
+  \begin{tabular}{|l|r|r|r|r|r|r|r|}
+    \hline
+    & \multicolumn{4}{c|}{Perplexity $\downarrow$}
+    & \multicolumn{2}{c|}{Top-1 $\uparrow$}
+    & WER $\downarrow$ \\
+    \hline
+    Format & GPT-2 & Llama-2 & Llama-3 & Mistral & ViT-B\textdagger & RN-50\textdagger & wav2vec2\textdagger \\
+           &       & 7\,B    & 8\,B    & 7\,B    &       &       &          \\
+    \hline
+    BF16   & 30.3 & 6.02 & 6.74 & 6.14 & 80.3 & 80.4 & 2.86 \\
+    \hline
+    \fpfour             & 107.8 & 7.83 & 9.19 & 7.90 & 73.6 & 11.3 & 9.00 \\
+    \hline
+    NVFP4               &  36.3 & \underline{6.38} & \underline{7.59} & 6.46 & 77.3 & 55.5 & \underline{3.68} \\
+    \hline
+    \mtwo               &  46.4 & 6.46 & 7.85 & \underline{6.35} & \underline{78.4} & 60.3 & 5.00 \\
+    \hline
+    \rowcolor{gray!12}
+    \textbf{\fpfourres{} (residue on A)} & \textbf{\underline{35.4}} & \textbf{6.65} & \textbf{7.75} & \textbf{6.49} & \textbf{78.1} & \textbf{27.2} & \textbf{30.5} \\
+    \hline
+    \quad \textbf{\textit{residue on W}}    & \textbf{79.7} & \textbf{6.73} & \textbf{7.82} & \textbf{6.77} & \textbf{77.2} & \textbf{\underline{67.3}} & \textbf{4.27} \\
+    \hline
+    \quad \textit{residue on both} &  30.3 & 6.04 & 6.79 & 6.15 & 80.3 & 79.3 & 2.77 \\
+    \hline
+    \fpeight-E4M3       &  31.1 & 6.08 & 6.87 & 6.20 & 79.5 & 77.9 & 2.71 \\
+    \hline
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\textwidth}
+    \footnotesize
+    \underline{Underline}: best among MXFP4 / NVFP4 / \mtwo{} / \fpfourres{} (residue on A) per column (BF16 and \fpeight-E4M3 are reference points, not candidates).
+    \fpfourres{} (default) places residue on activations only (W/A $=4.25/8.50$\,b); ``residue on W'' is mirrored ($8.50/4.25$\,b) and ``residue on both'' is symmetric ($8.50/8.50$\,b).
+    \textdagger vision/speech: single seed (42).
+  \end{minipage}
+\end{table*}

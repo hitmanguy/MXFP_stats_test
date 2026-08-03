@@ -23,6 +23,7 @@ results/
 M2XFP4/
 M2XFP4.pdf
 research_paper/
+mxdotp_code/
 
 # HuggingFace cache
 .cache/

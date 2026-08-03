@@ -1,0 +1,27 @@
+\begin{table}[t]
+  \centering
+  \caption{Useful throughput per format, Nangate45 \SI{45}{\nano\meter}.
+           One FLOP is one multiply or one add.}
+  \label{tab:residue}
+  \setlength{\tabcolsep}{2.2pt}
+  \renewcommand{\arraystretch}{1.15}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Format & Elem./ & Instr./ & $F_{\max}$ & Throughput & vs.\ \\
+           & instr. & pair    & (\si{\mega\hertz}) & (\si{\giga\flop\per\second}) & \fpeight \\
+    \midrule
+    \fpfour   & 16 & 1 & 414.9 & 13.28 & 2.88$\times$ \\
+    \mtwo     & 16 & 1 & 359.5 & 11.50 & 2.49$\times$ \\
+    \fpeight  &  8 & 1 & 288.3 &  4.61 & 1.00$\times$ \\
+    \midrule
+    \fpfourres & 16 & 2 & 441.0 & 14.11 & 3.06$\times$ \\
+    \bottomrule
+  \end{tabular}%
+  }
+  \\[2pt]
+  \begin{minipage}{\columnwidth}
+    \footnotesize
+    Both \insn{mxdotp} and \insn{mxfinal} are structurally pipelined (\S\ref{sec:arch-isa}) with no combinational hazards, a single global stall, and decoupled by an asynchronous mailbox, matching the discipline used by the other three fused engines. The pair's shared clock is bounded by \insn{mxfinal} (\SI{441.0}{\mega\hertz} vs.\ \insn{mxdotp}'s \SI{915.5}{\mega\hertz}). Throughput assumes 2 cycles per completed pair, following directly from this structure.
+  \end{minipage}
+\end{table}

@@ -1,0 +1,13 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+This work evaluated \fpfourres, a residue MX format, by implementing it
+alongside \fpfour, \fpeight, and \mtwo{} as format-specialised engines within a
+single \xif-compliant coprocessor and characterising all four on a common core,
+flow, and technology node. \fpfourres{} does not improve on \fpeight{} in
+compute throughput, as its dual-scale dot product requires an instruction pair;
+its benefit is a weight footprint equal to \fpfour{} at accuracy approaching
+\fpeight, which favours memory-bound inference. The accompanying per-format
+scale-free frame keeps each engine exact to round-to-nearest-even across the
+full E8M0 scale range at a width set by its element format, and the coprocessor
+is portable across \xif-compliant hosts.

@@ -1,0 +1,56 @@
+% Merged instruction set + operand map. R4-type custom-0 opcode 0x0B; funct2
+% selects the MX format, funct3 the operation. Only MXFP4R takes two native
+% instructions (stated in the caption; no separate Insns/dp column needed).
+% Column headers abbreviated (f3/f2, Elems) with symbol-footnote expansions
+% to fit the operand columns in the same single-column float; symbol
+% definitions and dual-read/32-bit-read facts follow below.
+\begin{table}[t]
+  \centering
+  \caption{Instruction set and operand map. R4-type, custom-0 opcode
+           \insn{0x0B}; \insn{funct2} selects the MX format, \insn{funct3}
+           the operation. \fpfourres{} requires two native instructions,
+           since it carries a third \SI{64}{\bit} source
+           and a second block scale (\S\ref{sec:arch-residue}).}
+  \label{tab:isa}
+  \scriptsize
+  \setlength{\tabcolsep}{2.3pt}
+  \renewcommand{\arraystretch}{1.15}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{|l|l|c|c|c|c|c|}
+    \hline
+    Format & Mnemonic & \insn{f3/f2}\rlap{$^{\ast}$} &
+      Elems\rlap{$^{\dagger}$} &
+      \insn{rs1} & \insn{rs2} & \insn{rs3} \\
+    \hline
+    \fpfour  & \MXFUSED & 011/00 & 16
+        & $p_A$ & $p_W$ & $\{x_W,x_A,\mathit{acc}\}$ \\
+    \hline
+    \fpeight & \MXFUSED & 011/11 &  8
+        & $p_A$ & $p_W$ & $\{x_W,x_A,\mathit{acc}\}$ \\
+    \hline
+    \mtwo    & \MXFUSED & 011/10 & 16
+        & $p_A$ & $p_W$ & $\{\mathrm{md},x_W,x_A,\mathit{acc}\}$ \\
+    \hline
+    \multirow{2}{*}{\fpfourres}
+             & \MXDOTP  & 000/01 & 16
+                 & $p_A$ & $p_W$ & $p_{Ar}$ \\
+    \cline{2-7}
+             & \MXFINAL & 001/01 & ---
+                 & $\{x_A,x_{Ar},x_W\}$ & $\mathit{acc}$ & --- \\
+    \hline
+  \end{tabular}%
+  }
+  \\[2pt]
+  \begin{minipage}{\columnwidth}
+    \scriptsize
+    \textsuperscript{*}\insn{funct3}/\insn{funct2}.
+    \textsuperscript{\textdagger}Elements per instruction.
+    $p_A,p_W,p_{Ar}$: packed activation/weight/residue-activation vectors;
+    $x_A,x_{Ar},x_W$: E8M0 block scales; \textit{acc}: FP32 accumulator;
+    braces denote fields packed into one register word. $p_A,p_W,p_{Ar}$ and
+    \MXFUSED's \insn{rs3} are \SI{64}{\bit} dual-read register pairs;
+    \MXFINAL's \insn{rs1},\insn{rs2} are plain \SI{32}{\bit} reads.
+    \MXDOTP{} writes no register; \MXFINAL{} and \MXFUSED{} write the FP32
+    result.
+  \end{minipage}
+\end{table}

@@ -64,7 +64,7 @@ def run_language_eval(
     from frameworks.language import LanguageEvalHarness
 
     model_name = cfg.get("model_name", "gpt2")
-    seeds = cfg.get("seeds", [42])
+    seeds = cfg.get("seeds", [42, 123, 1337])
     n_chunks = cfg.get("n_chunks", 50)
     seq_len = cfg.get("seq_len", 1024)
     block_size = cfg.get("block_size", 32)
@@ -124,9 +124,10 @@ def run_language_eval(
 
                 all_results.append(result)
 
-                # Store per-chunk NLL for significance testing (seed=42 primary)
-                if seed == 42:
-                    per_chunk_nlls[mode] = result["per_chunk_nll"]
+                # Store per-chunk NLL for significance testing from all seeds
+                if mode not in per_chunk_nlls:
+                    per_chunk_nlls[mode] = []
+                per_chunk_nlls[mode].extend(result["per_chunk_nll"])
 
             except Exception as e:
                 print(f"  [ERROR] {e}")
@@ -170,7 +171,7 @@ def run_vision_eval(
     from frameworks.vision import VisionEvalHarness
 
     model_name = cfg.get("model_name", "resnet18")
-    seeds = cfg.get("seeds", [42])
+    seeds = cfg.get("seeds", [42, 123, 1337])
     n_batches = cfg.get("n_batches", 100)
     batch_size = cfg.get("batch_size", 32)
     block_size = cfg.get("block_size", 32)
@@ -254,7 +255,7 @@ def run_speech_eval(
     from frameworks.speech import SpeechEvalHarness
 
     model_name = cfg.get("model_name", "facebook/wav2vec2-base-960h")
-    seeds = cfg.get("seeds", [42])
+    seeds = cfg.get("seeds", [42, 123, 1337])
     n_samples = cfg.get("n_samples", 200)
     block_size = cfg.get("block_size", 32)
     quant_modes = cfg.get("quant_modes", ["fp32"])

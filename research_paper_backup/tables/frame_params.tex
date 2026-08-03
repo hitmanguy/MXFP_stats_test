@@ -1,0 +1,30 @@
+\begin{table}[t]
+  \centering
+  \caption{Derived sliding-frame constants. Frame width is set by the element
+           format alone; the E8M0 scale range does not appear.}
+  \label{tab:frames}
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{|l|c|c|c|c|c|}
+    \hline
+    Engine & Anchor $\anchor$ & $\Sigma_{\mathrm{P}}$\rlap{$^{\ast}$} & Frame & REMAIN & LZC \\
+           &                  & (bits)                & (bits) & (bits) & (bits) \\
+    \hline
+    \fpfour     &  2 & 12 & 38 & 25 &  63 \\
+    \hline
+    \fpeight    & 32 & 69 & 95 & 25 & 120 \\
+    \hline
+    \mtwo       &  6 & 17 & 43 & 25 &  68 \\
+    \hline
+    \fpfourres  &  2 & 12\rlap{$^{\dagger}$} & 38 & 36 &  74 \\
+    \hline
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\columnwidth}
+    \footnotesize
+    $^{\ast}$Unsigned sum-of-products field resident in the frame word.
+    $^{\dagger}$Two product terms at independent scales
+    (\S\ref{sec:arch-residue}); the wider REMAIN follows from cancellation
+    between them rather than against the accumulator.
+  \end{minipage}
+\end{table}

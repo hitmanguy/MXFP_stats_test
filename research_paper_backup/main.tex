@@ -1,0 +1,87 @@
+% MXR4DOT -- VLSID 2027. 6 pages incl. references, IEEE two-column, double-blind.
+\documentclass[conference]{IEEEtran}
+
+\newif\ifanon      \anontrue
+\newif\ifdraft     \drafttrue
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc,arrows.meta,decorations.pathreplacing,fit,shapes.geometric}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage[caption=false,font=footnotesize]{subfig}
+\usepackage{balance}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+\sisetup{detect-weight=true, detect-family=true, group-separator={,},
+  range-phrase={--}, range-units=single, per-mode=symbol}
+\DeclareSIUnit{\flop}{FLOP}
+
+\ifdraft
+  \newcommand{\TODO}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+  \newcommand{\DATAGAP}[1]{\textcolor{blue}{\textbf{[DATA: #1]}}}
+\else
+  \newcommand{\TODO}[1]{}
+  \newcommand{\DATAGAP}[1]{}
+\fi
+
+\newcommand{\projname}{\textsc{MxR4Dot}}
+\newcommand{\fpfour}{MXFP4}
+\newcommand{\fpeight}{MXFP8}
+\newcommand{\fpfourres}{MXFP4R}
+\newcommand{\mtwo}{M\textsuperscript{2}XFP4}
+\newcommand{\xif}{CV-X-IF}
+\newcommand{\core}{CV32E40X}
+\newcommand{\anchor}{\alpha}
+
+\newcommand{\insn}[1]{\texttt{\small #1}}
+\newcommand{\MXFUSED}{\insn{mxfused}}
+\newcommand{\MXDOTP}{\insn{mxr4dot}}
+\newcommand{\MXFINAL}{\insn{mxfinal}}
+
+\begin{document}
+
+\title{\projname: A Residue MX Format in a RISC-V Coprocessor for Evaluating
+  Hardware Cost Against Existing MX Formats \TODO{working title}}
+
+\ifanon
+  \author{\IEEEauthorblockN{Anonymous Submission}
+          \IEEEauthorblockA{Paper ID: \TODO{SoftConf}}}
+\else
+  \author{\IEEEauthorblockN{Author One, Author Two}
+          \IEEEauthorblockA{Affiliation}}
+\fi
+
+\maketitle
+
+\input{sections/abstract}
+
+\begin{IEEEkeywords}
+Microscaling formats, MXFP8, RISC-V, CV-X-IF, dot product, low-precision
+arithmetic, ASIC synthesis.
+\end{IEEEkeywords}
+
+\input{sections/introduction}
+\input{sections/background}
+\input{sections/analysis}
+\input{sections/architecture}
+\input{sections/evaluation}
+\input{sections/conclusion}
+
+\section*{Acknowledgment}
+\input{sections/acknowledgment}
+
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
